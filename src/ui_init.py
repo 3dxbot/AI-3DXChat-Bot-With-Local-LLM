@@ -55,11 +55,11 @@ class UIInitMixin:
 
         # Set initial window size based on view mode
         if self.view_mode == 0:
-            self.root.geometry("700x650")
+            self.root.geometry("700x820")
         elif self.view_mode == 1:
-            self.root.geometry("650x600")
+            self.root.geometry("650x770")
         elif self.view_mode == 2:
-            self.root.geometry("500x350")
+            self.root.geometry("500x520")
 
     def setup_top_header(self):
         """
@@ -262,7 +262,16 @@ class UIInitMixin:
         self.hooker_mod_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
 
         self.game_sync_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Game Sync", command=self.switch_to_game_sync)
-        self.game_sync_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_XS, UIStyles.SPACE_MD))
+        self.game_sync_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
+
+        self.character_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Character", command=self.switch_to_character)
+        self.character_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
+
+        self.ai_setup_button_sidebar = UIStyles.create_secondary_button(nav_card, text="AI Setup", command=self.switch_to_ai_setup)
+        self.ai_setup_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
+
+        self.chat_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Chat", command=self.switch_to_chat)
+        self.chat_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_XS, UIStyles.SPACE_MD))
 
         # Zone 2: Toggle Switches
         switches_card = UIStyles.create_card_frame(self.sidebar_frame)
@@ -400,26 +409,61 @@ class UIInitMixin:
         self.update_sidebar_active()
         self.show_game_sync_view()
 
-    def show_help_view(self):
+    def switch_to_character(self):
         """
-        Show help view.
+        Switch to character view.
         """
-        # Hide settings if shown
+        self.current_view = 'character'
+        self.update_sidebar_active()
+        self.show_character_view()
+
+    def switch_to_ai_setup(self):
+        """
+        Switch to AI setup view.
+        """
+        self.current_view = 'ai_setup'
+        self.update_sidebar_active()
+        self.show_ai_setup_view()
+
+    def switch_to_chat(self):
+        """
+        Switch to chat view.
+        """
+        self.current_view = 'chat'
+        self.update_sidebar_active()
+        self.show_chat_view()
+
+    def _hide_all_views(self):
+        """
+        Hide all view frames and show main UI.
+        """
+        # Hide all secondary views
         if hasattr(self, 'settings_frame'):
             self.settings_frame.grid_remove()
-
-        # Hide hooker mod frame if shown
         if hasattr(self, 'hooker_mod_frame'):
             self.hooker_mod_frame.grid_remove()
-
-        # Hide game sync frame if shown
         if hasattr(self, 'game_sync_frame'):
             self.game_sync_frame.grid_remove()
+        if hasattr(self, 'help_frame'):
+            self.help_frame.grid_remove()
+        if hasattr(self, 'character_frame'):
+            self.character_frame.grid_remove()
+        if hasattr(self, 'ai_setup_frame'):
+            self.ai_setup_frame.grid_remove()
+        if hasattr(self, 'chat_frame'):
+            self.chat_frame.grid_remove()
 
         # Hide main UI
         self.header_frame.grid_remove()
         self.main_container.grid_remove()
         self.footer_frame.grid_remove()
+
+    def show_help_view(self):
+        """
+        Show help view.
+        """
+        # Hide other views
+        self._hide_all_views()
 
         # Show help
         if not hasattr(self, 'help_frame'):
@@ -492,7 +536,97 @@ Ctrl+R: Change language to Russian
 Ctrl+F: Change language to French
 Ctrl+S: Change language to Spanish"""
         
-        ctk.CTkLabel(hotkeys_card, text=hotkeys_text, 
+        ctk.CTkLabel(hotkeys_card, text=hotkeys_text,
+                      justify="left", anchor="w",
+                      font=UIStyles.FONT_NORMAL,
+                      text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+
+    def _populate_character_view(self):
+        """
+        Populate the character view content.
+        """
+        # Page title
+        ctk.CTkLabel(self.character_frame, text="Character Settings",
+                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
+                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
+
+        # Character settings card
+        character_card = UIStyles.create_card_frame(self.character_frame)
+        character_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
+
+        ctk.CTkLabel(character_card, text="Character Configuration",
+                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
+
+        character_text = """Configure your character's personality, appearance, and behavior settings here.
+
+This section allows you to:
+- Set character name and description
+- Define personality traits
+- Configure appearance preferences
+- Set behavioral patterns
+
+Note: This feature is under development."""
+        ctk.CTkLabel(character_card, text=character_text,
+                      justify="left", anchor="w",
+                      font=UIStyles.FONT_NORMAL,
+                      text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+
+    def _populate_ai_setup_view(self):
+        """
+        Populate the AI setup view content.
+        """
+        # Page title
+        ctk.CTkLabel(self.ai_setup_frame, text="AI Setup",
+                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
+                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
+
+        # AI setup card
+        ai_card = UIStyles.create_card_frame(self.ai_setup_frame)
+        ai_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
+
+        ctk.CTkLabel(ai_card, text="AI Configuration",
+                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
+
+        ai_text = """Configure AI model settings and parameters here.
+
+This section allows you to:
+- Select AI model and provider
+- Set temperature and other generation parameters
+- Configure API endpoints
+- Set up model-specific options
+
+Note: This feature is under development."""
+        ctk.CTkLabel(ai_card, text=ai_text,
+                      justify="left", anchor="w",
+                      font=UIStyles.FONT_NORMAL,
+                      text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+
+    def _populate_chat_view(self):
+        """
+        Populate the chat view content.
+        """
+        # Page title
+        ctk.CTkLabel(self.chat_frame, text="Chat Settings",
+                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
+                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
+
+        # Chat settings card
+        chat_card = UIStyles.create_card_frame(self.chat_frame)
+        chat_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
+
+        ctk.CTkLabel(chat_card, text="Chat Configuration",
+                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
+
+        chat_text = """Configure chat behavior and response settings here.
+
+This section allows you to:
+- Set response delay and timing
+- Configure message filtering
+- Set up auto-responses
+- Define chat rules and boundaries
+
+Note: This feature is under development."""
+        ctk.CTkLabel(chat_card, text=chat_text,
                       justify="left", anchor="w",
                       font=UIStyles.FONT_NORMAL,
                       text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
@@ -505,22 +639,8 @@ Ctrl+S: Change language to Spanish"""
         if hasattr(self, 'bot') and self.bot:
             self.hooker_enabled_var.set(getattr(self.bot, 'hooker_mod_enabled', False))
 
-        # Hide settings if shown
-        if hasattr(self, 'settings_frame'):
-            self.settings_frame.grid_remove()
-
-        # Hide help if shown
-        if hasattr(self, 'help_frame'):
-            self.help_frame.grid_remove()
-
-        # Hide game sync if shown
-        if hasattr(self, 'game_sync_frame'):
-            self.game_sync_frame.grid_remove()
-
-        # Hide main UI
-        self.header_frame.grid_remove()
-        self.main_container.grid_remove()
-        self.footer_frame.grid_remove()
+        # Hide other views
+        self._hide_all_views()
 
         # Show hooker mod
         if not hasattr(self, 'hooker_mod_frame'):
@@ -547,6 +667,14 @@ Ctrl+S: Change language to Spanish"""
         if hasattr(self, 'help_frame'):
             self.help_frame.grid_remove()
 
+        # Hide character, ai_setup, chat frames if shown
+        if hasattr(self, 'character_frame'):
+            self.character_frame.grid_remove()
+        if hasattr(self, 'ai_setup_frame'):
+            self.ai_setup_frame.grid_remove()
+        if hasattr(self, 'chat_frame'):
+            self.chat_frame.grid_remove()
+
         # Hide main UI
         self.header_frame.grid_remove()
         self.main_container.grid_remove()
@@ -561,6 +689,54 @@ Ctrl+S: Change language to Spanish"""
         else:
             self.game_sync_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
 
+    def show_character_view(self):
+        """
+        Show character view.
+        """
+        # Hide other views
+        self._hide_all_views()
+
+        # Show character
+        if not hasattr(self, 'character_frame'):
+            self.character_frame = ctk.CTkScrollableFrame(self.root, width=self.root.winfo_width() - 180,
+                                                          height=self.root.winfo_height(), fg_color="transparent")
+            self.character_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+            self._populate_character_view()
+        else:
+            self.character_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+    def show_ai_setup_view(self):
+        """
+        Show AI setup view.
+        """
+        # Hide other views
+        self._hide_all_views()
+
+        # Show AI setup
+        if not hasattr(self, 'ai_setup_frame'):
+            self.ai_setup_frame = ctk.CTkScrollableFrame(self.root, width=self.root.winfo_width() - 180,
+                                                         height=self.root.winfo_height(), fg_color="transparent")
+            self.ai_setup_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+            self._populate_ai_setup_view()
+        else:
+            self.ai_setup_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
+    def show_chat_view(self):
+        """
+        Show chat view.
+        """
+        # Hide other views
+        self._hide_all_views()
+
+        # Show chat
+        if not hasattr(self, 'chat_frame'):
+            self.chat_frame = ctk.CTkScrollableFrame(self.root, width=self.root.winfo_width() - 180,
+                                                     height=self.root.winfo_height(), fg_color="transparent")
+            self.chat_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+            self._populate_chat_view()
+        else:
+            self.chat_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
+
     def update_sidebar_active(self):
         """
         Update sidebar button colors based on current view.
@@ -570,8 +746,11 @@ Ctrl+S: Change language to Spanish"""
         self.settings_button_sidebar.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
         self.hooker_mod_button_sidebar.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
         self.game_sync_button_sidebar.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
+        self.character_button_sidebar.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
+        self.ai_setup_button_sidebar.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
+        self.chat_button_sidebar.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
         self.help_button.configure(fg_color=UIStyles.SECONDARY_COLOR, hover_color=UIStyles.HOVER_COLOR, border_width=0)
-        
+
         # Highlight active button with primary color
         if self.current_view == 'dashboard':
             self.dashboard_button.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
@@ -581,6 +760,12 @@ Ctrl+S: Change language to Spanish"""
             self.hooker_mod_button_sidebar.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
         elif self.current_view == 'game_sync':
             self.game_sync_button_sidebar.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
+        elif self.current_view == 'character':
+            self.character_button_sidebar.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
+        elif self.current_view == 'ai_setup':
+            self.ai_setup_button_sidebar.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
+        elif self.current_view == 'chat':
+            self.chat_button_sidebar.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
         elif self.current_view == 'help':
             self.help_button.configure(fg_color=UIStyles.PRIMARY_COLOR, hover_color=UIStyles.PRIMARY_HOVER)
 
@@ -616,21 +801,8 @@ Ctrl+S: Change language to Spanish"""
         """
         Show dashboard view (main UI components).
         """
-        # Hide settings if shown
-        if hasattr(self, 'settings_frame'):
-            self.settings_frame.grid_remove()
-
-        # Hide hooker mod frame if shown
-        if hasattr(self, 'hooker_mod_frame'):
-            self.hooker_mod_frame.grid_remove()
-
-        # Hide game sync frame if shown
-        if hasattr(self, 'game_sync_frame'):
-            self.game_sync_frame.grid_remove()
-
-        # Hide help if shown
-        if hasattr(self, 'help_frame'):
-            self.help_frame.grid_remove()
+        # Hide all secondary views
+        self._hide_all_views()
 
         # Show main UI
         self.header_frame.grid()
@@ -641,22 +813,8 @@ Ctrl+S: Change language to Spanish"""
         """
         Show settings view.
         """
-        # Hide hooker mod frame if shown
-        if hasattr(self, 'hooker_mod_frame'):
-            self.hooker_mod_frame.grid_remove()
-
-        # Hide game sync frame if shown
-        if hasattr(self, 'game_sync_frame'):
-            self.game_sync_frame.grid_remove()
-
-        # Hide help if shown
-        if hasattr(self, 'help_frame'):
-            self.help_frame.grid_remove()
-
-        # Hide main UI
-        self.header_frame.grid_remove()
-        self.main_container.grid_remove()
-        self.footer_frame.grid_remove()
+        # Hide other views
+        self._hide_all_views()
 
         # Show settings
         if not hasattr(self, 'settings_frame'):
@@ -787,7 +945,7 @@ Ctrl+S: Change language to Spanish"""
         Since view_mode is always 0 (expanded), this just ensures the layout is correct.
         """
         # Set window size
-        self.root.geometry("700x650")
+        self.root.geometry("700x820")
 
         # Footer is already gridded in setup_ui
         self.footer_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=5)
