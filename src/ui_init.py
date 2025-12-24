@@ -49,9 +49,10 @@ class UIInitMixin:
         """
         self.root.columnconfigure(0, weight=0)  # Sidebar
         self.root.columnconfigure(1, weight=1)  # Main area
-        self.root.rowconfigure(0, weight=0)  # Main header
-        self.root.rowconfigure(1, weight=1)  # Main content
-        self.root.rowconfigure(2, weight=0)  # Footer
+        self.root.rowconfigure(0, weight=0)  # Ollama Status
+        self.root.rowconfigure(1, weight=0)  # Main header
+        self.root.rowconfigure(2, weight=1)  # Main content
+        self.root.rowconfigure(3, weight=0)  # Footer
 
         # Set initial window size based on view mode
         if self.view_mode == 0:
@@ -81,8 +82,13 @@ class UIInitMixin:
         Creates the main header containing start, pause, stop, clear chat,
         and close partnership buttons with initial layout configuration.
         """
+        # Ollama Status Zone (added first, at the very top)
+        if hasattr(self, 'ollama_ui'):
+             self.ollama_status_frame = self.ollama_ui.create_dashboard_zone(self.root)
+             self.ollama_status_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=(UIStyles.SPACE_LG, UIStyles.SPACE_SM))
+             
         self.header_frame = UIStyles.create_card_frame(self.root)
-        self.header_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=(UIStyles.SPACE_LG, 0))
+        self.header_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=(UIStyles.SPACE_LG, 0))
         for i in range(5):
             self.header_frame.columnconfigure(i, weight=1)
 
@@ -107,19 +113,24 @@ class UIInitMixin:
             ctk.CTkFrame: The configured main container frame.
         """
         main_container = ctk.CTkFrame(self.root, fg_color="transparent")
-        main_container.grid(row=1, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=UIStyles.SPACE_LG, pady=(0, UIStyles.SPACE_SM))
+        main_container = ctk.CTkFrame(self.root, fg_color="transparent")
+        main_container.grid(row=2, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=UIStyles.SPACE_LG, pady=(0, UIStyles.SPACE_SM))
         main_container.columnconfigure(0, weight=1)
+        
+        
+        # Row configuration
         main_container.rowconfigure(0, weight=0)  # Nicks Header
         main_container.rowconfigure(1, weight=0)  # Nicks Content
         main_container.rowconfigure(2, weight=0)  # Logs Header
         main_container.rowconfigure(3, weight=1)  # Logs Content
+        
         return main_container
 
     def setup_logs_frame(self, parent):
         """
         Setup logs display frame with collapsible header.
 
-        Creates a header with a collapse button and a scrollable text area 
+        Creates a header with a collapse button and a scrollable text area
         for displaying application logs.
 
         Args:
@@ -149,8 +160,8 @@ class UIInitMixin:
         text_container.columnconfigure(0, weight=1)
         text_container.rowconfigure(0, weight=1)
         
-        self.log_text = tk.Text(text_container, wrap=tk.WORD, height=12, bg="#0f172a", fg=UIStyles.TEXT_PRIMARY,
-                                font=(UIStyles.FONT_FAMILY_MONO, 12), borderwidth=0, relief='flat', 
+        self.log_text = tk.Text(text_container, wrap=tk.WORD, bg="#0f172a", fg=UIStyles.TEXT_PRIMARY,
+                                font=(UIStyles.FONT_FAMILY_MONO, 12), borderwidth=0, relief='flat',
                                 selectbackground=UIStyles.PRIMARY_COLOR, highlightthickness=0)
         self.log_text.grid(row=0, column=0, sticky='nsew', padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_MD)
         self.log_text.configure(state=tk.DISABLED)
@@ -159,7 +170,7 @@ class UIInitMixin:
         """Setup sidebar with nick lists and collapsible header."""
         # Header - always visible
         nicks_header = ctk.CTkFrame(parent, fg_color="transparent")
-        nicks_header.grid(row=0, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
+        nicks_header.grid(row=1, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
         nicks_header.columnconfigure(0, weight=1)
         
         UIStyles.create_section_header(nicks_header, text="Nick Management", font=(UIStyles.FONT_FAMILY, 15, "bold")).grid(row=0, column=0, sticky='w', padx=(15, 0))
@@ -171,7 +182,7 @@ class UIInitMixin:
 
         # Nicks content - Collapsed by default
         self.nicks_content_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        self.nicks_content_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), padx=0, pady=(0, UIStyles.SPACE_SM))
+        self.nicks_content_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=0, pady=(0, UIStyles.SPACE_SM))
         self.nicks_content_frame.grid_remove() # Hide initially
         for i in range(3):
             self.nicks_content_frame.columnconfigure(i, weight=1)
@@ -221,19 +232,18 @@ class UIInitMixin:
         and autonomous mode toggle.
         """
         self.footer_frame = ctk.CTkFrame(self.root, fg_color="transparent")
-        self.footer_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=5)
-        self.footer_frame.columnconfigure(0, weight=1)
-        self.footer_frame.columnconfigure(1, weight=0)
-        self.footer_frame.rowconfigure(0, weight=0)
-        self.footer_frame.rowconfigure(1, weight=0)
-        self.footer_frame.rowconfigure(2, weight=0)
+        self.footer_frame.grid(row=3, column=1, sticky=(tk.W, tk.E, tk.S), padx=UIStyles.SPACE_LG, pady=(0, 10))
 
-        # Manual input - Using new helper method
-        self.manual_input_entry = UIStyles.create_input_field(self.footer_frame, textvariable=self.manual_input_var)
-        self.manual_input_entry.grid(row=0, column=0, sticky='ew', padx=(UIStyles.SPACE_SM, UIStyles.SPACE_SM), pady=UIStyles.SPACE_SM)
+        # Manual input container - always at the bottom
+        self.input_container = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
+        self.input_container.pack(side='bottom', fill='x', pady=0)
+
+        self.manual_input_entry = UIStyles.create_input_field(self.input_container, textvariable=self.manual_input_var)
+        self.manual_input_entry.pack(side='left', fill='x', expand=True, padx=(0, 5), pady=0)
         self.manual_input_entry.bind('<Return>', lambda event: self.on_manual_send_click())
 
-        self.send_button = UIStyles.create_button(self.footer_frame, text="Send", command=self.on_manual_send_click, height=40, width=100)
+        self.send_button = UIStyles.create_button(self.input_container, text="Send", command=self.on_manual_send_click, height=40, width=100)
+        self.send_button.pack(side='right', padx=0, pady=0)
 
     def setup_sidebar(self):
         """
@@ -456,7 +466,8 @@ class UIInitMixin:
         # Hide main UI
         self.header_frame.grid_remove()
         self.main_container.grid_remove()
-        self.footer_frame.grid_remove()
+        if hasattr(self, 'footer_frame'):
+            self.footer_frame.grid_remove()
 
     def show_help_view(self):
         """
@@ -580,14 +591,18 @@ Note: This feature is under development."""
                       font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
                       text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
 
-        # AI setup card
-        ai_card = UIStyles.create_card_frame(self.ai_setup_frame)
-        ai_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
+        # Create Ollama zones if Ollama UI is available
+        if hasattr(self, 'ollama_ui'):
+            self.ai_setup_zones = self.ollama_ui.create_ai_setup_zones(self.ai_setup_frame)
+        else:
+            # Fallback content
+            ai_card = UIStyles.create_card_frame(self.ai_setup_frame)
+            ai_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
 
-        ctk.CTkLabel(ai_card, text="AI Configuration",
-                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
+            ctk.CTkLabel(ai_card, text="AI Configuration",
+                          font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
 
-        ai_text = """Configure AI model settings and parameters here.
+            ai_text = """Configure AI model settings and parameters here.
 
 This section allows you to:
 - Select AI model and provider
@@ -596,10 +611,10 @@ This section allows you to:
 - Set up model-specific options
 
 Note: This feature is under development."""
-        ctk.CTkLabel(ai_card, text=ai_text,
-                      justify="left", anchor="w",
-                      font=UIStyles.FONT_NORMAL,
-                      text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+            ctk.CTkLabel(ai_card, text=ai_text,
+                          justify="left", anchor="w",
+                          font=UIStyles.FONT_NORMAL,
+                          text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
 
     def _populate_chat_view(self):
         """
@@ -678,7 +693,8 @@ Note: This feature is under development."""
         # Hide main UI
         self.header_frame.grid_remove()
         self.main_container.grid_remove()
-        self.footer_frame.grid_remove()
+        if hasattr(self, 'footer_frame'):
+            self.footer_frame.grid_remove()
 
         # Show game sync
         if not hasattr(self, 'game_sync_frame'):
@@ -807,7 +823,10 @@ Note: This feature is under development."""
         # Show main UI
         self.header_frame.grid()
         self.main_container.grid()
-        self.footer_frame.grid()
+        if hasattr(self, 'footer_frame'):
+            self.footer_frame.grid()
+        
+        # Ollama status is already created in setup_main_header, no need to duplicate
 
     def show_settings_view(self):
         """
@@ -842,7 +861,9 @@ Note: This feature is under development."""
         self.root.bind('<Configure>', self.on_resize)
 
         self.main_container = self.setup_main_container()
+        # Setup Logs
         self.setup_logs_frame(self.main_container)
+        
         self.setup_sidebar_frame(self.main_container)
         self.setup_footer_frame()
         self.update_footer_layout()
@@ -911,19 +932,16 @@ Note: This feature is under development."""
         """
         width = self.root.winfo_width() - 180  # Subtract sidebar width
 
-        # Forget all current positions in footer
-        for widget in self.footer_frame.winfo_children():
-            widget.grid_forget()
-
-        # Manual input always at top
-        self.manual_input_entry.grid(row=0, column=0, sticky='ew', padx=(5, 5), pady=5)
-
+        # Only update positions, don't forget and recreate widgets
+        # Manual input always at top (using pack for consistency as requested)
         if width > 400:
             # Wide: send button next to input
-            self.send_button.grid(row=0, column=1, sticky='e', padx=(0, 5), pady=5)
+            self.manual_input_entry.pack(side='left', fill='x', expand=True, padx=(0, 5), pady=0)
+            self.send_button.pack(side='right', padx=0, pady=0)
         else:
             # Narrow: send button below input
-            self.send_button.grid(row=1, column=0, sticky='w', padx=(5, 5), pady=5)
+            self.manual_input_entry.pack(side='top', fill='x', expand=True, padx=0, pady=(0, 5))
+            self.send_button.pack(side='top', fill='x', padx=0, pady=0)
 
     def on_resize(self, event):
         """
@@ -948,7 +966,7 @@ Note: This feature is under development."""
         self.root.geometry("700x820")
 
         # Footer is already gridded in setup_ui
-        self.footer_frame.grid(row=2, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=5)
+        self.footer_frame.grid(row=3, column=1, sticky=(tk.W, tk.E, tk.S), padx=UIStyles.SPACE_LG, pady=(0, 10))
 
         # Update header layout
         self.update_header_layout()
@@ -999,3 +1017,20 @@ Note: This feature is under development."""
             self.hooker_switch.configure(fg_color=UIStyles.HOVER_COLOR, progress_color=UIStyles.HOVER_COLOR)
         else:
             self.hooker_switch.configure(fg_color=UIStyles.DISABLED_COLOR, progress_color=UIStyles.DISABLED_COLOR)
+    
+    def _update_start_button_state(self):
+        """
+        Update Start button state based on Ollama status.
+        
+        The Start button should be enabled only when Ollama is Running.
+        """
+        if hasattr(self, 'ollama_ui') and hasattr(self, 'start_button'):
+            if hasattr(self, 'status_manager'):
+                ollama_status = self.status_manager.get_ollama_status()
+                if ollama_status == "Running":
+                    self.start_button.configure(state="normal", fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669")
+                else:
+                    self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)
+            else:
+                # Fallback: disable if no status manager available
+                self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)

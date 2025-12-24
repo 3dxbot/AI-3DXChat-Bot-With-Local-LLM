@@ -13,6 +13,11 @@ import tkinter as tk
 import customtkinter as ctk
 import keyboard
 from .bot import ChatBot
+from .ollama_manager import OllamaManager
+from .status_manager import StatusManager
+from .download_manager import DownloadManager
+from .file_manager import FileManager
+from .ui_ollama import OllamaUI
 import time
 import traceback
 import json
@@ -88,6 +93,13 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, Hotk
         self.scanning_status = ""
         self._dots_count = 0
         self.icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'logo.ico')
+        
+        # Ollama integration
+        self.file_manager = FileManager()
+        self.status_manager = StatusManager()
+        self.download_manager = DownloadManager()
+        self.ollama_manager = OllamaManager(self.file_manager, self.download_manager, self.status_manager)
+        self.ollama_ui = OllamaUI(self.root, self.ollama_manager, self.status_manager, self.file_manager, self.download_manager)
 
         # Configure modern styles
         UIStyles.configure_styles()
@@ -101,6 +113,17 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, Hotk
         self.autonomous_var.set(getattr(self.bot, 'autonomous_mode', False))
         self.hooker_enabled_var.set(getattr(self.bot, 'hooker_mod_enabled', False))
         self.update_switch_colors()
+
+        # Initialize Ollama system
+        self.file_manager.create_ollama_directories()
+        self.status_manager.start_monitoring()
+        
+        # Add callback for Ollama status changes to update Start button
+        self.status_manager.add_callback('ollama_status', self._on_ollama_status_changed)
+        
+        # Start Ollama detection in background
+        import threading
+        threading.Thread(target=self.ollama_manager.detect_ollama, daemon=True).start()
 
         # Check keyboard layout and warn if not English
         self._check_keyboard_layout()
@@ -153,3 +176,15 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, Hotk
                 self.log_message("Keyboard layout is English - text insertion should work correctly.", internal=True)
         except Exception as e:
             self.log_message(f"Error checking keyboard layout: {e}", internal=True)
+    
+    def _on_ollama_status_changed(self, new_status, old_status):
+        """
+        Handle Ollama status changes.
+        
+        Updates the Start button state based on Ollama status.
+        """
+        if hasattr(self, 'start_button'):
+            if new_status == "Running":
+                self.start_button.configure(state="normal", fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669")
+            else:
+                self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)

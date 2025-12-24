@@ -104,7 +104,7 @@ class UIWindowsMixin:
 
         # Unknown Pose Message (RU)
         ctk.CTkLabel(inner_messages, text="Unknown Pose Message (RU):", font=UIStyles.FONT_SMALL, text_color=UIStyles.TEXT_SECONDARY).pack(anchor='w', pady=(0, UIStyles.SPACE_XS))
-        self.unknown_pose_message_ru_var = tk.StringVar(value=self.bot.unknown_pose_message_ru)
+        self.unknown_pose_message_ru_var = tk.StringVar(value=getattr(self.bot, 'unknown_pose_message_ru', ""))
         unknown_pose_ru_entry = UIStyles.create_input_field(inner_messages, textvariable=self.unknown_pose_message_ru_var)
         unknown_pose_ru_entry.pack(fill='x')
 

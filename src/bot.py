@@ -251,6 +251,20 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         """
         if self.bot_running:
             return
+        
+        # Check Ollama status before starting
+        if hasattr(self.ui, 'status_manager'):
+            ollama_status = self.ui.status_manager.get_ollama_status()
+            active_model = self.ui.status_manager.get_active_model()
+            
+            if ollama_status != "Running":
+                self.log("Cannot start bot: Ollama is not running. Please start Ollama first.", internal=True)
+                return
+            
+            if not active_model:
+                self.log("Cannot start bot: No active model selected. Please download and activate a model first.", internal=True)
+                return
+        
         self.bot_running = True
         self.scanning_active = False
         self.paused = True  # Start in paused state

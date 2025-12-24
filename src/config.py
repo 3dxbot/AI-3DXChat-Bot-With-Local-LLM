@@ -69,6 +69,16 @@ GIFT_IMAGE_PATH = os.path.join(RESOURCES_DIR, "gift.png")
 POSES_DIR = os.path.join(RESOURCES_DIR, "poses")
 UNKNOWN_POSES_DIR = os.path.join(POSES_DIR, "unknown")
 
+# Ollama paths
+OLLAMA_DIR = os.path.join(RESOURCES_DIR, "ollama")
+OLLAMA_EXE_PATH = os.path.join(OLLAMA_DIR, "ollama.exe")
+OLLAMA_MODELS_DIR = os.path.join(OLLAMA_DIR, "models")
+OLLAMA_TEMP_DIR = os.path.join(OLLAMA_DIR, "temp")
+
+# Ollama API settings
+OLLAMA_API_URL = "http://localhost:11434"
+OLLAMA_DOWNLOAD_URL = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
+
 # Whether to use multiprocessing for OCR
 USE_MULTIPROCESSING = True
 
