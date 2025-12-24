@@ -1,0 +1,155 @@
+"""
+UI Main Module.
+
+This module provides the ChatBotUI class, which serves as the main user interface
+for the chatbot application. It combines multiple mixins to provide comprehensive
+UI functionality including initialization, event handling, hotkeys, and settings.
+
+Classes:
+    ChatBotUI: Main UI class combining all UI mixins.
+"""
+
+import tkinter as tk
+import customtkinter as ctk
+import keyboard
+from .bot import ChatBot
+import time
+import traceback
+import json
+import os
+from .config import HOTKEY_PHRASES_FILE
+from .ui_styles import UIStyles
+from .ui_utils import UIUtilsMixin
+from .ui_handlers import UIHandlersMixin
+from .ui_windows import UIWindowsMixin
+from .ui_init import UIInitMixin
+from .ui_hotkeys import HotkeyMixin
+from .ui_settings import SettingsMixin
+try:
+    import win32api
+except ImportError:
+    win32api = None
+
+
+class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, HotkeyMixin, SettingsMixin):
+    """
+    Main UI class for the ChatBot application with modern design.
+
+    This class combines multiple mixins to provide a complete user interface
+    for the chatbot application, including UI initialization, event handling,
+    hotkey management, and settings management.
+
+    Attributes:
+        root: Main Tkinter root window.
+        bot: ChatBot instance.
+        view_mode: UI view mode (always expanded).
+        hotkey_locks: Dictionary for hotkey debouncing.
+        is_processing: Dictionary for tracking processing states.
+        autonomous_var: Boolean variable for autonomous mode.
+        auto_lang_var: Boolean variable for auto language switching.
+        hiwaifu_language_var: String variable for HiWaifu language.
+        manual_input_var: String variable for manual input field.
+
+    Methods:
+        __init__: Initialize the UI.
+        on_close: Handle window close event.
+        _check_keyboard_layout: Check and warn about keyboard layout.
+    """
+
+    def __init__(self, root):
+        """
+        Initialize the ChatBot UI.
+
+        Sets up the main window, initializes UI components, creates the bot instance,
+        loads settings, checks keyboard layout, and sets up hotkeys.
+
+        Args:
+            root: Tkinter root window.
+        """
+        self.root = root
+        self.root.title("ChatBot [Not Running]")
+        self.is_busy = False
+        self.bot = None  # Initialize later
+        self.hwnd = None
+        self.last_toggle_time = 0
+        self.hotkey_locks = {}
+        self.is_processing = {}
+        self.global_prompt_var = None
+        self.manual_input_var = tk.StringVar()
+        self.autonomous_var = ctk.BooleanVar(value=False)
+        self.hiwaifu_language_var = tk.StringVar(value="en")
+        self.use_translation_var = ctk.BooleanVar(value=False)
+        self.hooker_enabled_var = ctk.BooleanVar(value=False)
+        self.show_zones_var = ctk.BooleanVar(value=False)
+        self.view_mode = 0  # Always expanded view
+        self.settings_mode = False  # Track if in settings view
+        self.current_view = 'dashboard'  # Track current navigation view
+        self.current_status = "Not Running"
+        self.scanning_status = ""
+        self._dots_count = 0
+        self.icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'logo.ico')
+
+        # Configure modern styles
+        UIStyles.configure_styles()
+        UIStyles.apply_to_root(self.root)
+
+        self.setup_ui()
+        self.bot = ChatBot(self)  # Initialize bot after UI setup
+        self.load_settings()  # Bot is now available
+        # Sync UI variables with bot settings
+        self.use_translation_var.set(getattr(self.bot, 'use_translation_layer', False))
+        self.autonomous_var.set(getattr(self.bot, 'autonomous_mode', False))
+        self.hooker_enabled_var.set(getattr(self.bot, 'hooker_mod_enabled', False))
+        self.update_switch_colors()
+
+        # Check keyboard layout and warn if not English
+        self._check_keyboard_layout()
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.setup_hotkeys()
+        self.root.attributes("-topmost", True)
+        self.hwnd = self.root.winfo_id()
+        if self.hwnd == 0:
+            self.root.update_idletasks()
+            self.hwnd = self.root.winfo_id()
+
+
+    def on_close(self):
+        """
+        Handle window close event.
+
+        Unhooks all hotkeys, stops the bot if running, and destroys the window.
+        """
+        keyboard.unhook_all()
+        if self.bot and self.bot.bot_running:
+            self.bot.stop_bot()
+        self.root.destroy()
+
+    def _check_keyboard_layout(self):
+        """
+        Check current keyboard layout and warn if not English.
+
+        Uses win32api to detect the current keyboard layout and shows a warning
+        if it's not English, as text insertion may not work correctly otherwise.
+        """
+        if win32api is None:
+            self.log_message("Failed to import win32api for keyboard layout check.", internal=True)
+            return
+
+        try:
+            current_layout = win32api.GetKeyboardLayout(0) & 0xFFFF
+            english_layout = 0x0409  # English (United States)
+
+            if current_layout != english_layout:
+                message = (
+                    "Warning: Current keyboard layout is not English.\n\n"
+                    "Text insertion into HiWaifu may not work correctly with non-English layout.\n"
+                    "It is recommended to switch to English (EN) layout for proper bot operation.\n\n"
+                    "You can continue, but text insertion functionality may be limited."
+                )
+                tk.messagebox.showwarning("Keyboard Layout Warning", message)
+                self.log_message("Non-English keyboard layout detected. Text insertion may work incorrectly.", internal=True)
+            else:
+                self.log_message("Keyboard layout is English - text insertion should work correctly.", internal=True)
+        except Exception as e:
+            self.log_message(f"Error checking keyboard layout: {e}", internal=True)

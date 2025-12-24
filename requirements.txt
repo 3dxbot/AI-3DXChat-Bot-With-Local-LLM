@@ -1,0 +1,42 @@
+# ChatBot Application Requirements
+# Install with: pip install -r requirements.txt
+
+# Web automation and browser control
+playwright
+
+# OCR (Optical Character Recognition)
+pytesseract
+
+# Image processing and manipulation
+pillow
+
+# GUI automation and screenshot capture
+pyautogui
+
+# Keyboard input simulation
+keyboard
+
+# Clipboard operations
+pyperclip
+
+# Window management
+pygetwindow
+
+# Windows API access
+pywin32
+
+# Optimized fuzzy string matching
+rapidfuzz
+
+# Numerical computing for image processing
+numpy
+
+# Computer vision and image preprocessing
+opencv-python
+
+# Modern GUI framework
+customtkinter
+
+# Automatic language detection for messages
+langdetect
+deep-translator==1.11.4
