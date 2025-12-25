@@ -172,35 +172,9 @@ class UIHandlersMixin:
 
     def on_manual_send_click(self):
         """
-        Handle manual send button click.
-
-        Sends a manual message from the input field if the bot is running.
+        Legacy handler for manual send (removed).
         """
-        key = 'manual_send'
-        if self._check_lock(key, full_lock=True):
-            return
-
-        message = self.manual_input_var.get().strip()
-        if not message:
-            self.bot.log("Manual input field is empty.", internal=True)
-            self._unlock(key)
-            return
-
-        self.manual_input_entry.configure(state=tk.DISABLED)
-
-        try:
-            if self.bot and self.bot.bot_running:
-                self.bot.initiate_chat_from_text(message)
-                self.manual_input_var.set("")
-            else:
-                self.bot.log("Bot not running for message sending.", internal=True)
-        except Exception as e:
-            self.bot.log(f"Error in manual sending: {e}", internal=True)
-            traceback.print_exc()
-        finally:
-            self.manual_input_entry.configure(state=tk.NORMAL)
-            self._unlock(key)
-            self.manual_input_entry.focus_set()
+        pass
 
     def on_toggle_overlay(self):
         """

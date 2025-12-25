@@ -19,6 +19,7 @@ from .download_manager import DownloadManager
 from .file_manager import FileManager
 from .ui_ollama import OllamaUI
 from .ui_character import UICharacterMixin
+from .ui_chat import UIChatMixin
 import time
 import traceback
 import json
@@ -37,7 +38,7 @@ except ImportError:
     win32api = None
 
 
-class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHotkeysMixin, UICharacterMixin, SettingsMixin):
+class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHotkeysMixin, UICharacterMixin, UIChatMixin, SettingsMixin):
     """
     Main UI class for the ChatBot application with modern design.
 
@@ -81,7 +82,6 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         self.hotkey_locks = {}
         self.is_processing = {}
         self.global_prompt_var = None
-        self.manual_input_var = tk.StringVar()
         self.autonomous_var = ctk.BooleanVar(value=False)
         self.hiwaifu_language_var = tk.StringVar(value="en")
         self.use_translation_var = ctk.BooleanVar(value=False)

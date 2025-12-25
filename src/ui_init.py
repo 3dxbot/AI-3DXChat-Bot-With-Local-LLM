@@ -53,15 +53,14 @@ class UIInitMixin:
         self.root.rowconfigure(0, weight=0)  # Ollama Status
         self.root.rowconfigure(1, weight=0)  # Main header
         self.root.rowconfigure(2, weight=1)  # Main content
-        self.root.rowconfigure(3, weight=0)  # Footer
 
         # Set initial window size based on view mode
         if self.view_mode == 0:
-            self.root.geometry("800x820")
+            self.root.geometry("800x760")
         elif self.view_mode == 1:
-            self.root.geometry("750x770")
+            self.root.geometry("750x720")
         elif self.view_mode == 2:
-            self.root.geometry("600x520")
+            self.root.geometry("600x480")
 
     def setup_top_header(self):
         """
@@ -114,7 +113,6 @@ class UIInitMixin:
             ctk.CTkFrame: The configured main container frame.
         """
         main_container = ctk.CTkFrame(self.root, fg_color="transparent")
-        main_container = ctk.CTkFrame(self.root, fg_color="transparent")
         main_container.grid(row=2, column=1, sticky=(tk.W, tk.E, tk.N, tk.S), padx=UIStyles.SPACE_LG, pady=(0, UIStyles.SPACE_SM))
         main_container.columnconfigure(0, weight=1)
         
@@ -166,12 +164,14 @@ class UIInitMixin:
                                 selectbackground=UIStyles.PRIMARY_COLOR, highlightthickness=0)
         self.log_text.grid(row=0, column=0, sticky='nsew', padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_MD)
         self.log_text.configure(state=tk.DISABLED)
+        # Ensure it expands
+        parent.rowconfigure(3, weight=1)
 
     def setup_sidebar_frame(self, parent):
         """Setup sidebar with nick lists and collapsible header."""
         # Header - always visible
         nicks_header = ctk.CTkFrame(parent, fg_color="transparent")
-        nicks_header.grid(row=1, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
+        nicks_header.grid(row=0, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
         nicks_header.columnconfigure(0, weight=1)
         
         UIStyles.create_section_header(nicks_header, text="Nick Management", font=UIStyles.FONT_H3).grid(row=0, column=0, sticky='w', padx=(15, 0))
@@ -183,7 +183,7 @@ class UIInitMixin:
 
         # Nicks content - Collapsed by default
         self.nicks_content_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        self.nicks_content_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=0, pady=(0, UIStyles.SPACE_SM))
+        self.nicks_content_frame.grid(row=1, column=0, sticky=(tk.W, tk.E), padx=0, pady=(0, UIStyles.SPACE_SM))
         self.nicks_content_frame.grid_remove() # Hide initially
         for i in range(3):
             self.nicks_content_frame.columnconfigure(i, weight=1)
@@ -227,31 +227,18 @@ class UIInitMixin:
 
     def setup_footer_frame(self):
         """
-        Setup footer with manual input and settings.
-
-        Creates the footer containing manual message input, send button,
-        and autonomous mode toggle.
+        Setup footer (REMOVED).
         """
-        self.footer_frame = ctk.CTkFrame(self.root, fg_color="transparent")
-        self.footer_frame.grid(row=3, column=1, sticky=(tk.W, tk.E, tk.S), padx=UIStyles.SPACE_LG, pady=(0, 10))
+        pass
 
-        # Manual input container - always at the bottom
-        self.input_container = ctk.CTkFrame(self.footer_frame, fg_color="transparent")
-        self.input_container.pack(side='bottom', fill='x', pady=0)
-
-        self.manual_input_entry = UIStyles.create_input_field(self.input_container, textvariable=self.manual_input_var)
-        self.manual_input_entry.pack(side='left', fill='x', expand=True, padx=(0, 5), pady=0)
-        self.manual_input_entry.bind('<Return>', lambda event: self.on_manual_send_click())
-
-        self.send_button = UIStyles.create_button(self.input_container, text="Send", command=self.on_manual_send_click, height=36, width=100)
-        self.send_button.pack(side='right', padx=0, pady=0)
+        # Manual input container REMOVED - moved to Chat tab
 
     def setup_sidebar(self):
         """
         Setup left sidebar with navigation buttons and controls.
         """
         self.sidebar_frame = ctk.CTkFrame(self.root, width=180, fg_color=UIStyles.HEADER_BG, corner_radius=0)
-        self.sidebar_frame.grid(row=0, column=0, rowspan=3, sticky=(tk.N, tk.S, tk.W), padx=0, pady=0)
+        self.sidebar_frame.grid(row=0, column=0, rowspan=4, sticky=(tk.N, tk.S, tk.W), padx=0, pady=0)
         self.sidebar_frame.pack_propagate(False)
 
         # Brand/Logo Area
@@ -266,7 +253,13 @@ class UIInitMixin:
         self.dashboard_button = UIStyles.create_secondary_button(nav_card, text="Dashboard", command=self.switch_to_dashboard)
         self.dashboard_button.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
 
-        self.settings_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Hotkeys", command=self.switch_to_settings)
+        self.chat_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Chat", command=self.switch_to_chat)
+        self.chat_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
+
+        self.character_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Character", command=self.switch_to_character)
+        self.character_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
+
+        self.settings_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Prompts", command=self.switch_to_settings)
         self.settings_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
 
         self.hooker_mod_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Hooker Mod", command=self.switch_to_hooker_mod)
@@ -275,14 +268,8 @@ class UIInitMixin:
         self.game_sync_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Game Sync", command=self.switch_to_game_sync)
         self.game_sync_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
 
-        self.character_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Character", command=self.switch_to_character)
-        self.character_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
-
         self.ai_setup_button_sidebar = UIStyles.create_secondary_button(nav_card, text="AI Setup", command=self.switch_to_ai_setup)
-        self.ai_setup_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
-
-        self.chat_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Chat", command=self.switch_to_chat)
-        self.chat_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_XS, UIStyles.SPACE_MD))
+        self.ai_setup_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_XS, UIStyles.SPACE_MD))
 
         # Zone 2: Toggle Switches
         switches_card = UIStyles.create_card_frame(self.sidebar_frame)
@@ -597,33 +584,11 @@ Note: This feature is under development."""
 
     def _populate_chat_view(self):
         """
-        Populate the chat view content.
+        Populate the chat view content via UIChatMixin.
         """
-        # Page title
-        ctk.CTkLabel(self.chat_frame, text="Chat Settings",
-                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
-                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
-
-        # Chat settings card
-        chat_card = UIStyles.create_card_frame(self.chat_frame)
-        chat_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
-
-        ctk.CTkLabel(chat_card, text="Chat Configuration",
-                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
-
-        chat_text = """Configure chat behavior and response settings here.
-
-This section allows you to:
-- Set response delay and timing
-- Configure message filtering
-- Set up auto-responses
-- Define chat rules and boundaries
-
-Note: This feature is under development."""
-        ctk.CTkLabel(chat_card, text=chat_text,
-                      justify="left", anchor="w",
-                      font=UIStyles.FONT_NORMAL,
-                      text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+        # This will be handled by UIChatMixin._populate_chat_view
+        if hasattr(super(), '_populate_chat_view'):
+            super()._populate_chat_view()
 
     def show_hooker_mod_view(self):
         """
@@ -724,8 +689,7 @@ Note: This feature is under development."""
 
         # Show chat
         if not hasattr(self, 'chat_frame'):
-            self.chat_frame = ctk.CTkScrollableFrame(self.root, width=self.root.winfo_width() - 180,
-                                                     height=self.root.winfo_height(), fg_color="transparent")
+            self.chat_frame = ctk.CTkFrame(self.root, fg_color="transparent")
             self.chat_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
             self._populate_chat_view()
         else:
@@ -801,8 +765,6 @@ Note: This feature is under development."""
         # Show main UI
         self.header_frame.grid()
         self.main_container.grid()
-        if hasattr(self, 'footer_frame'):
-            self.footer_frame.grid()
         
         # Ollama status is already created in setup_main_header, no need to duplicate
 
@@ -844,7 +806,6 @@ Note: This feature is under development."""
         
         self.setup_sidebar_frame(self.main_container)
         self.setup_footer_frame()
-        self.update_footer_layout()
 
         # Initial rebuild to apply compact mode
         self.rebuild_ui()
@@ -903,23 +864,9 @@ Note: This feature is under development."""
 
     def update_footer_layout(self):
         """
-        Adaptive layout for footer based on window width.
-
-        Rearranges footer elements (input field, send button)
-        based on available width for optimal mobile and desktop usability.
+        Adaptive layout for footer (removed manual input).
         """
-        width = self.root.winfo_width() - 180  # Subtract sidebar width
-
-        # Only update positions, don't forget and recreate widgets
-        # Manual input always at top (using pack for consistency as requested)
-        if width > 400:
-            # Wide: send button next to input
-            self.manual_input_entry.pack(side='left', fill='x', expand=True, padx=(0, 5), pady=0)
-            self.send_button.pack(side='right', padx=0, pady=0)
-        else:
-            # Narrow: send button below input
-            self.manual_input_entry.pack(side='top', fill='x', expand=True, padx=0, pady=(0, 5))
-            self.send_button.pack(side='top', fill='x', padx=0, pady=0)
+        pass
 
     def on_resize(self, event):
         """
@@ -941,10 +888,10 @@ Note: This feature is under development."""
         Since view_mode is always 0 (expanded), this just ensures the layout is correct.
         """
         # Set window size
-        self.root.geometry("800x820")
+        self.root.geometry("800x760")
 
         # Footer is already gridded in setup_ui
-        self.footer_frame.grid(row=3, column=1, sticky=(tk.W, tk.E, tk.S), padx=UIStyles.SPACE_LG, pady=(0, 10))
+        # self.footer_frame.grid(row=3, column=1, sticky=(tk.W, tk.E, tk.S), padx=UIStyles.SPACE_LG, pady=(0, 10))
 
         # Update header layout
         self.update_header_layout()

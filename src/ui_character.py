@@ -342,6 +342,10 @@ class UICharacterMixin:
             self.bot.character_manifest = self.current_character.manifest
             self.bot.save_settings()
 
+        # Update Chat UI if available
+        if hasattr(self, '_display_character_greeting'):
+            self._display_character_greeting()
+
         self._refresh_character_list()
         self._update_activate_btn_state()
         messagebox.showinfo("Activated", f"Character '{self.active_character_name}' is now active.")

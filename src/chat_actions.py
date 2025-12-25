@@ -28,6 +28,8 @@ class ChatActionsMixin:
         initiate_chat_from_text: Initiate chat from text input.
         _async_initiate_chat_from_text: Async handler for text chat initiation.
         _prepare_message_with_prompt: Prepare message with global prompt and partner nick.
+        get_chat_response: Direct async method to get a response from the LLM/Browser.
+        clear_chat_history: Clear bot conversation history and browser state.
     """
 
     async def send_to_game(self, messages, force=False):
@@ -258,3 +260,53 @@ class ChatActionsMixin:
         if prompt:
             return f"{prompt} {prefix}{message}"
         return f"{prefix}{message}"
+
+    async def get_chat_response(self, message):
+        """
+        Direct async method to get a response from the LLM/Browser.
+        Useful for UI-only chat where game interaction is optional.
+        """
+        try:
+            message_with_prompt = self._prepare_message_with_prompt(message)
+            
+            # Use browser for now, but design allows switching and captured for UI
+            self.log(f"UI Chat Request: {message[:50]}...", internal=True)
+            response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
+            return response
+        except Exception as e:
+            self.log(f"Error getting chat response: {e}", internal=True)
+            return None
+
+    def clear_chat_history(self):
+        """
+        Clear bot conversation history and browser state.
+        This resets the session in the browser.
+        """
+        if hasattr(self, 'browser_manager'):
+            # Trigger clearing of chat history in the browser
+            asyncio.run_coroutine_threadsafe(self.browser_manager.clear_chat_history(), self.loop)
+            self.log("Chat history cleared (reset signal sent to browser).", internal=True)
+
+    async def get_chat_response(self, message):
+        """
+        Direct async method to get a response from the LLM/Browser.
+        Useful for UI-only chat where game interaction is optional.
+        """
+        try:
+            message_with_prompt = self._prepare_message_with_prompt(message)
+            response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
+            return response
+        except Exception as e:
+            self.log(f"Error getting chat response: {e}", internal=True)
+            return None
+
+    def clear_chat_history(self):
+        """
+        Clear bot conversation history and browser state.
+        This resets the session in the browser.
+        """
+        if hasattr(self, 'browser_manager'):
+            # This would ideally trigger a 'new chat' or reload in the browser
+            # For now, let's assume we reload the chat page or send a reset signal
+            asyncio.run_coroutine_threadsafe(self.browser_manager.reset_chat(), self.loop)
+            self.log("Chat history cleared (reset signal sent to browser).", internal=True)
