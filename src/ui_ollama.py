@@ -201,8 +201,7 @@ class OllamaUI:
             row1,
             text="Download Ollama",
             command=self._on_action_click,
-            width=160,
-            height=40
+            width=140
         )
         self.ai_action_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
         
@@ -212,8 +211,7 @@ class OllamaUI:
             text="Start Service",
             command=self._on_service_toggle_click,
             state="disabled",
-            width=160,
-            height=40
+            width=120
         )
         self.ai_service_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
         
@@ -296,6 +294,18 @@ class OllamaUI:
             text_color=UIStyles.TEXT_PRIMARY
         )
         title.pack(side='left')
+    
+        # Active model indicator in setup
+        current_model = self.status_manager.get_active_model()
+        model_text = current_model if current_model else "None"
+        
+        self.setup_active_model_label = ctk.CTkLabel(
+            header,
+            text=f" (Active: {model_text})",
+            font=UIStyles.FONT_NORMAL,
+            text_color=UIStyles.PRIMARY_COLOR
+        )
+        self.setup_active_model_label.pack(side='left', padx=(UIStyles.SPACE_SM, 0))
         
         # Download section
         download_section = ctk.CTkFrame(zone, fg_color="transparent")
@@ -324,8 +334,7 @@ class OllamaUI:
             input_row,
             text="Download Model",
             command=self._on_download_model_click,
-            width=160,
-            height=40
+            width=140
         )
         self.download_model_btn.pack(side='right')
         
@@ -349,8 +358,8 @@ class OllamaUI:
             control_frame,
             values=[],
             command=self._on_model_select,
-            width=300,
-            height=36,
+            width=280,
+            height=34,
             fg_color=UIStyles.SURFACE_COLOR,
             button_color=UIStyles.SECONDARY_COLOR,
             button_hover_color=UIStyles.HOVER_COLOR,
@@ -362,21 +371,19 @@ class OllamaUI:
         
         self.activate_model_btn = UIStyles.create_button(
             control_frame,
-            text="Activate Model",
+            text="Activate",
             command=self._on_activate_model_click,
             state="disabled",
-            width=140,
-            height=36
+            width=110
         )
         self.activate_model_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
         
         self.delete_model_btn = UIStyles.create_secondary_button(
             control_frame,
-            text="Delete Model",
+            text="Delete",
             command=self._on_delete_model_click,
             state="disabled",
-            width=140,
-            height=36,
+            width=110,
             fg_color=UIStyles.SECONDARY_COLOR,
             hover_color=UIStyles.ERROR_COLOR
         )
@@ -527,6 +534,9 @@ class OllamaUI:
         model_text = new_model if new_model else "None"
         if hasattr(self, 'active_model_label') and self.active_model_label:
             self.active_model_label.configure(text=model_text)
+        
+        if hasattr(self, 'setup_active_model_label') and self.setup_active_model_label:
+            self.setup_active_model_label.configure(text=f" (Active: {model_text})")
         
         # Update dropdown selection
         if new_model and hasattr(self, 'model_dropdown') and self.model_dropdown:

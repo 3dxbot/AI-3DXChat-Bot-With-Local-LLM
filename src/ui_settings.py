@@ -35,6 +35,12 @@ class SettingsMixin:
         self.autonomous_var.set(self.bot.autonomous_mode)
         self.hiwaifu_language_var.set(self.bot.ocr_language)
         self.use_translation_var.set(getattr(self.bot, 'use_translation_layer', False))
+        
+        # Sync active model to StatusManager
+        active_model = getattr(self.bot, 'active_model', None)
+        if active_model:
+            self.status_manager.set_active_model(active_model)
+            
         self.load_lists()
 
     def setup_screen_area(self):

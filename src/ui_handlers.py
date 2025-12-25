@@ -79,11 +79,29 @@ class UIHandlersMixin:
             paused (bool): Whether the bot is currently paused.
         """
         from .ui_styles import UIStyles
-        self.start_button.configure(state="disabled" if running else "normal", fg_color=UIStyles.DISABLED_COLOR if running else "#4CAF50")
-        self.stop_button.configure(state="normal" if running else "disabled", fg_color="#F44336" if running else UIStyles.DISABLED_COLOR)
-        self.clear_chat_button.configure(state="normal" if running else "disabled", fg_color=UIStyles.PRIMARY_COLOR if running else UIStyles.DISABLED_COLOR)
+        
+        # Start button - Success green when available
+        self.start_button.configure(
+            state="disabled" if running else "normal", 
+            fg_color=UIStyles.DISABLED_COLOR if running else UIStyles.SUCCESS_COLOR
+        )
+        
+        # Stop button - Error red when running
+        self.stop_button.configure(
+            state="normal" if running else "disabled", 
+            fg_color=UIStyles.ERROR_COLOR if running else UIStyles.DISABLED_COLOR
+        )
+        
+        # Action buttons - Primary blue when running
+        btn_state = "normal" if running else "disabled"
+        btn_color = UIStyles.PRIMARY_COLOR if running else UIStyles.DISABLED_COLOR
+        
+        self.clear_chat_button.configure(state=btn_state, fg_color=btn_color)
+        self.close_partnership_button.configure(state=btn_state, fg_color=btn_color)
+        
         if running:
-            self.pause_button.configure(state="normal", fg_color="#FF9800")
+            # Pause button - Warning amber when running
+            self.pause_button.configure(state="normal", fg_color=UIStyles.WARNING_COLOR)
             self.pause_button.configure(text="Pause" if not paused else "Resume")
         else:
             self.pause_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, text="Pause")

@@ -56,11 +56,11 @@ class UIInitMixin:
 
         # Set initial window size based on view mode
         if self.view_mode == 0:
-            self.root.geometry("700x820")
+            self.root.geometry("800x820")
         elif self.view_mode == 1:
-            self.root.geometry("650x770")
+            self.root.geometry("750x770")
         elif self.view_mode == 2:
-            self.root.geometry("500x520")
+            self.root.geometry("600x520")
 
     def setup_top_header(self):
         """
@@ -93,12 +93,12 @@ class UIInitMixin:
             self.header_frame.columnconfigure(i, weight=1)
 
         # Buttons - calm neutral colors
-        btn_height = 40
+        btn_height = 36
         self.start_button = UIStyles.create_button(self.header_frame, text="Start", command=self.on_start_click, fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669", height=btn_height)
         self.pause_button = UIStyles.create_secondary_button(self.header_frame, text="Pause", command=self.on_pause_click, state=tk.DISABLED, height=btn_height)
         self.stop_button = UIStyles.create_secondary_button(self.header_frame, text="Stop", command=self.on_stop_click, state=tk.DISABLED, height=btn_height)
         self.clear_chat_button = UIStyles.create_secondary_button(self.header_frame, text="Clear Chat", command=self.on_clear_chat_click, state=tk.DISABLED, height=btn_height)
-        self.close_partnership_button = UIStyles.create_secondary_button(self.header_frame, text="Close Partn.", command=self.on_close_partnership_click, height=btn_height)
+        self.close_partnership_button = UIStyles.create_secondary_button(self.header_frame, text="Close Partn", command=self.on_close_partnership_click, state=tk.DISABLED, height=btn_height)
 
         # Initial layout
         self.update_header_layout()
@@ -141,7 +141,7 @@ class UIInitMixin:
         logs_header.grid(row=2, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
         logs_header.columnconfigure(0, weight=1)
         
-        UIStyles.create_section_header(logs_header, text="System Logs", font=(UIStyles.FONT_FAMILY, 15, "bold")).grid(row=0, column=0, sticky='w', padx=(15, 0))
+        UIStyles.create_section_header(logs_header, text="System Logs", font=UIStyles.FONT_H3).grid(row=0, column=0, sticky='w', padx=(15, 0))
         self.logs_collapse_btn = UIStyles.create_secondary_button(logs_header, text="▲", 
                                                                  command=self.toggle_logs_collapse, 
                                                                  width=30, height=24, border_width=0,
@@ -161,7 +161,7 @@ class UIInitMixin:
         text_container.rowconfigure(0, weight=1)
         
         self.log_text = tk.Text(text_container, wrap=tk.WORD, bg="#0f172a", fg=UIStyles.TEXT_PRIMARY,
-                                font=(UIStyles.FONT_FAMILY_MONO, 12), borderwidth=0, relief='flat',
+                                font=UIStyles.FONT_MONO, borderwidth=0, relief='flat',
                                 selectbackground=UIStyles.PRIMARY_COLOR, highlightthickness=0)
         self.log_text.grid(row=0, column=0, sticky='nsew', padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_MD)
         self.log_text.configure(state=tk.DISABLED)
@@ -173,7 +173,7 @@ class UIInitMixin:
         nicks_header.grid(row=1, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
         nicks_header.columnconfigure(0, weight=1)
         
-        UIStyles.create_section_header(nicks_header, text="Nick Management", font=(UIStyles.FONT_FAMILY, 15, "bold")).grid(row=0, column=0, sticky='w', padx=(15, 0))
+        UIStyles.create_section_header(nicks_header, text="Nick Management", font=UIStyles.FONT_H3).grid(row=0, column=0, sticky='w', padx=(15, 0))
         self.nicks_collapse_btn = UIStyles.create_secondary_button(nicks_header, text="▼", 
                                                                   command=self.toggle_nicks_collapse, 
                                                                   width=30, height=24, border_width=0,
@@ -203,7 +203,7 @@ class UIInitMixin:
             list_container.rowconfigure(0, weight=1)
             
             lb = tk.Listbox(list_container, height=5, bg="#0f172a", fg=UIStyles.TEXT_PRIMARY,
-                            font=(UIStyles.FONT_FAMILY, 13), borderwidth=0, relief='flat', highlightthickness=0, 
+                            font=UIStyles.FONT_NORMAL, borderwidth=0, relief='flat', highlightthickness=0, 
                             selectbackground=UIStyles.PRIMARY_COLOR)
             lb.grid(row=0, column=0, sticky="nsew", padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_MD)
             setattr(self, listbox_attr, lb)
@@ -242,7 +242,7 @@ class UIInitMixin:
         self.manual_input_entry.pack(side='left', fill='x', expand=True, padx=(0, 5), pady=0)
         self.manual_input_entry.bind('<Return>', lambda event: self.on_manual_send_click())
 
-        self.send_button = UIStyles.create_button(self.input_container, text="Send", command=self.on_manual_send_click, height=40, width=100)
+        self.send_button = UIStyles.create_button(self.input_container, text="Send", command=self.on_manual_send_click, height=36, width=100)
         self.send_button.pack(side='right', padx=0, pady=0)
 
     def setup_sidebar(self):
@@ -254,7 +254,7 @@ class UIInitMixin:
         self.sidebar_frame.pack_propagate(False)
 
         # Brand/Logo Area
-        brand_label = ctk.CTkLabel(self.sidebar_frame, text="CHATBOT", font=(UIStyles.FONT_FAMILY, 20, "bold"), text_color=UIStyles.PRIMARY_COLOR)
+        brand_label = ctk.CTkLabel(self.sidebar_frame, text="CHATBOT", font=UIStyles.FONT_TITLE, text_color=UIStyles.PRIMARY_COLOR)
         brand_label.pack(pady=(20, 20), padx=20, anchor="w")
 
         # Zone 1: Navigation Menu
@@ -288,7 +288,7 @@ class UIInitMixin:
         switches_card.pack(fill=tk.X, padx=10, pady=(0, 10))
 
         # Toggle Switches with larger, thicker font
-        TOGGLE_FONT = (UIStyles.FONT_FAMILY, 15, "bold")
+        TOGGLE_FONT = UIStyles.FONT_H3
 
         # Translation Layer switch
         ctk.CTkLabel(switches_card, text="Translation", font=TOGGLE_FONT, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
@@ -963,7 +963,7 @@ Note: This feature is under development."""
         Since view_mode is always 0 (expanded), this just ensures the layout is correct.
         """
         # Set window size
-        self.root.geometry("700x820")
+        self.root.geometry("800x820")
 
         # Footer is already gridded in setup_ui
         self.footer_frame.grid(row=3, column=1, sticky=(tk.W, tk.E, tk.S), padx=UIStyles.SPACE_LG, pady=(0, 10))

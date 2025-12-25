@@ -321,6 +321,7 @@ class BotSettingsMixin:
                     self.ignore_nicks = set(nick.strip().lower() for nick in ignore_nicks if nick)
                     target_nicks = settings.get("target_nicks", [])
                     self.target_nicks = set(nick.strip().lower() for nick in target_nicks if nick)
+                    self.active_model = settings.get("active_model", None)
                     ocr_lang = settings.get('ocr_language', 'en')
                     # Ensure ocr_language is one of the supported languages
                     supported_langs = ['en', 'ru', 'fr', 'es']
@@ -358,7 +359,8 @@ class BotSettingsMixin:
                 "ocr_language": self.ocr_language,
                 "show_overlay": self.show_overlay,
                 "autonomous_mode": self.autonomous_mode,
-                "time_per_500_chars": self.time_per_500_chars
+                "time_per_500_chars": self.time_per_500_chars,
+                "active_model": getattr(self, 'active_model', None)
             }
             os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:

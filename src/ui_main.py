@@ -120,6 +120,8 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, Hotk
         
         # Add callback for Ollama status changes to update Start button
         self.status_manager.add_callback('ollama_status', self._on_ollama_status_changed)
+        # Add callback for active model change to save it
+        self.status_manager.add_callback('active_model', self._on_active_model_changed_persistence)
         
         # Start Ollama detection in background
         import threading
@@ -188,3 +190,9 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, Hotk
                 self.start_button.configure(state="normal", fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669")
             else:
                 self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)
+
+    def _on_active_model_changed_persistence(self, new_model, old_model):
+        """Handle active model changes for persistence."""
+        if self.bot:
+            self.bot.active_model = new_model
+            self.bot.save_settings()

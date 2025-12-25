@@ -68,26 +68,29 @@ class UIStyles:
     FONT_FAMILY_FALLBACK = "Segoe UI"    # System fallback
     
     # Type Scale (size, weight, letter-spacing)
-    FONT_SIZE_DISPLAY = 28
+    FONT_SIZE_DISPLAY = 22
     FONT_WEIGHT_DISPLAY = "bold"
     
-    FONT_SIZE_H1 = 24
+    FONT_SIZE_H1 = 18
     FONT_WEIGHT_H1 = "bold"
     
-    FONT_SIZE_H2 = 20
+    FONT_SIZE_H2 = 16
     FONT_WEIGHT_H2 = "bold"
     
-    FONT_SIZE_H3 = 16
+    FONT_SIZE_H3 = 14
     FONT_WEIGHT_H3 = "bold"
     
-    FONT_SIZE_NORMAL = 14
-    FONT_SIZE_SMALL = 13
-    FONT_SIZE_TINY = 12
+    FONT_SIZE_NORMAL = 13
+    FONT_SIZE_SMALL = 12
+    FONT_SIZE_TINY = 11
     FONT_SIZE_TITLE = FONT_SIZE_H2  # Alias for backward compatibility
     
     # Composed font tuples for common use
     FONT_DISPLAY = (FONT_FAMILY, FONT_SIZE_DISPLAY, FONT_WEIGHT_DISPLAY)
-    FONT_TITLE = (FONT_FAMILY, FONT_SIZE_H2, FONT_WEIGHT_H2)
+    FONT_H1 = (FONT_FAMILY, FONT_SIZE_H1, FONT_WEIGHT_H1)
+    FONT_H2 = (FONT_FAMILY, FONT_SIZE_H2, FONT_WEIGHT_H2)
+    FONT_H3 = (FONT_FAMILY, FONT_SIZE_H3, FONT_WEIGHT_H3)
+    FONT_TITLE = FONT_H2
     FONT_BUTTON = (FONT_FAMILY, FONT_SIZE_NORMAL, "bold")
     FONT_NORMAL = (FONT_FAMILY, FONT_SIZE_NORMAL)
     FONT_SMALL = (FONT_FAMILY, FONT_SIZE_SMALL)
@@ -97,24 +100,24 @@ class UIStyles:
     # SPACING SCALE (4px base)
     # ==========================================
     
-    SPACE_XS = 4
-    SPACE_SM = 8
-    SPACE_MD = 12
-    SPACE_LG = 16
-    SPACE_XL = 20
-    SPACE_2XL = 24
-    SPACE_3XL = 32
-    SPACE_4XL = 48
-    SPACE_5XL = 64
+    SPACE_XS = 2
+    SPACE_SM = 4
+    SPACE_MD = 8
+    SPACE_LG = 12
+    SPACE_XL = 16
+    SPACE_2XL = 20
+    SPACE_3XL = 24
+    SPACE_4XL = 32
+    SPACE_5XL = 48
     
     # ==========================================
     # BORDER RADIUS
     # ==========================================
     
-    RADIUS_SM = 6
-    RADIUS_MD = 8
-    RADIUS_LG = 12
-    RADIUS_XL = 16
+    RADIUS_SM = 4
+    RADIUS_MD = 6
+    RADIUS_LG = 10
+    RADIUS_XL = 14
     RADIUS_PILL = 999  # For pill-shaped elements
     
     # ==========================================
@@ -173,6 +176,7 @@ class UIStyles:
             height=height,
             corner_radius=UIStyles.RADIUS_MD,
             text_color=UIStyles.TEXT_PRIMARY,
+            text_color_disabled=UIStyles.TEXT_SECONDARY,
             font=UIStyles.FONT_BUTTON,
             border_width=0,
             **kwargs
@@ -208,6 +212,7 @@ class UIStyles:
             height=height,
             corner_radius=UIStyles.RADIUS_MD,
             text_color=UIStyles.TEXT_PRIMARY,
+            text_color_disabled=UIStyles.TEXT_SECONDARY,
             font=UIStyles.FONT_BUTTON,
             border_width=border_width,
             border_color=UIStyles.BORDER_COLOR,
@@ -249,7 +254,7 @@ class UIStyles:
         """
         return ctk.CTkEntry(
             parent,
-            height=40,
+            height=36,
             corner_radius=UIStyles.RADIUS_MD,
             border_width=1,
             border_color=UIStyles.BORDER_COLOR,
