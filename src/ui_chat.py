@@ -176,10 +176,16 @@ class UIChatMixin:
         self._add_message("You", message, is_bot=False)
 
         # Forward to bot logic
-        if self.bot and self.bot.loop:
+        if self.bot and self.bot.loop and self.bot.loop.is_running():
             asyncio.run_coroutine_threadsafe(self._async_chat_request(message), self.bot.loop)
         else:
-            self._add_message("System", "Error: Bot loop is not running. Please click 'Start' first.", is_bot=True)
+            self.bot.log("Bot loop is not running. Falling back to direct execution.", internal=True)
+            # If loop is not running (e.g. game not active), we can try running it in a thread
+            import threading
+            def run_direct():
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(self._async_chat_request(message))
+            threading.Thread(target=run_direct, daemon=True).start()
 
     async def _async_chat_request(self, message):
         """Send message to Roxy and capture response."""
@@ -215,12 +221,13 @@ class UIChatMixin:
     def clear_chat_history_ui(self):
         """Reset the chat history."""
         if tk.messagebox.askyesno("Clear History", "Are you sure you want to clear the chat history?"):
-            self.chat_messages = []
-            self._refresh_chat_display()
-            # Also clear bot memory/browser
+            # Also clear bot memory/LLM
             if hasattr(self.bot, 'clear_chat_history'):
                 self.bot.clear_chat_history()
-            self._display_character_greeting()
+            else:
+                self.chat_messages = []
+                self._refresh_chat_display()
+                self._display_character_greeting()
 
     def _on_chat_active_char_change(self, new_char: Optional[str], old_char: Optional[str]):
         """Callback for active character change."""

@@ -148,7 +148,7 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         """
         keyboard.unhook_all()
         if self.bot and self.bot.bot_running:
-            self.bot.stop_bot()
+            self.bot.stop_bot(wait=False)
         self.root.destroy()
 
     def _check_keyboard_layout(self):

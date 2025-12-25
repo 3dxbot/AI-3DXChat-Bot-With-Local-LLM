@@ -210,14 +210,15 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
 
     def clear_chat_history(self):
         """
-        Clear the chat history in local LLM context.
+        Clear bot conversation history in local LLM context and UI.
         """
-        if self.bot_running:
-            self.log("Clearing local LLM chat history...", internal=True)
-            self.ui.ollama_manager.clear_history()
-            self.first_message_sent = False
-        else:
-            self.log("Cannot clear chat: bot not running.", internal=True)
+        self.ui.ollama_manager.clear_history()
+        if hasattr(self.ui, 'chat_messages'):
+            self.ui.chat_messages = []
+            if hasattr(self.ui, '_refresh_chat_display'):
+                self.ui.root.after(0, self.ui._refresh_chat_display)
+        self.log("Chat history cleared (LLM memory and UI reset).", internal=True)
+        self.first_message_sent = False
 
     def log(self, message, internal=False):
         """
@@ -329,12 +330,15 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
             except Exception as e:
                 self.log("No existing partnership detected.", internal=True)
 
-    def stop_bot(self):
+    def stop_bot(self, wait=True):
         """
         Stop the bot.
 
         Stops all bot operations, destroys overlay, clears memory,
         and updates UI status.
+
+        Args:
+            wait (bool): Whether to wait for the bot thread to finish.
         """
         if not self.bot_running:
             return
@@ -355,8 +359,8 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         self.pending_accept_location = None
         self.log("Bot memory cleared (except ignore list).", internal=True)
 
-        if self.bot_thread and self.bot_thread.is_alive():
-            self.bot_thread.join(timeout=5)
+        if wait and self.bot_thread and self.bot_thread.is_alive():
+            self.bot_thread.join(timeout=1)
         self.log("Bot stopped.", internal=True)
         self.ui.update_status("Not running")
         self.ui.update_buttons_state(False)
@@ -596,8 +600,13 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                         response = await self.ui.ollama_manager.generate_response(
                             user_input, 
                             system_prompt=self.global_prompt, 
+                            max_history=10,
                             manifest=self.character_manifest
                         )
+                        # Add scanned message and response to UI
+                        if hasattr(self.ui, '_add_message'):
+                            self.ui.root.after(0, lambda a=author, m=message: self.ui._add_message(a, m, is_bot=False))
+                        
                         self.log(f"LLM response: {repr(response)}", internal=True)
 
                         dot_task.cancel()
@@ -613,6 +622,11 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                         await self.send_to_game(processed_parts, force=True)
                         self.last_message_time = time.time()  # Update activity time after sending
                         self.log("LLM response inserted into game.", internal=True)
+                        
+                        # Add bot response to UI
+                        if hasattr(self.ui, '_add_message'):
+                            active_name = getattr(self, 'active_character_name', "Bot")
+                            self.ui.root.after(0, lambda n=active_name, r=response: self.ui._add_message(n, r, is_bot=True))
                     else:
                         self.log("Failed to get response from local LLM.", internal=True)
 

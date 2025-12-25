@@ -124,15 +124,12 @@ class UIHandlersMixin:
         """
         Handle clear chat button click.
 
-        Clears the chat history if the bot is available, with proper locking.
+        Clears bot memory, LLM history and UI chat history.
         """
-        if self._check_lock('f4', full_lock=True):
-            return
-        try:
-            if self.bot:
+        if self.bot:
+            import tkinter.messagebox as messagebox
+            if messagebox.askyesno("Clear Chat", "Are you sure you want to clear the chat history and memory?"):
                 self.bot.clear_chat_history()
-        finally:
-            self._unlock('f4')
 
     def on_close_partnership_click(self):
         """
