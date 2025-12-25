@@ -36,7 +36,7 @@ from .autonomous_actions import AutonomousActionsMixin
 from .pose_actions import PoseActionsMixin
 from .chat_actions import ChatActionsMixin
 from .utility_actions import UtilityActionsMixin
-from browser import BrowserManager
+# BrowserManager removed (Migrating to Local LLM)
 
 
 class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, AutonomousActionsMixin, PoseActionsMixin, ChatActionsMixin, UtilityActionsMixin):
@@ -58,8 +58,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         current_partner_nick (str): Current partner nick.
         auto_lang_switch (bool): Auto language switching flag.
         chat_processor: Chat processing object.
-        browser_manager: Browser management object.
-        bot_page: Browser page object.
+        # Migrated to local LLM: browser_manager removed
         bot_running (bool): Bot running flag.
         scanning_active (bool): Scanning active flag.
         bot_thread: Bot thread object.
@@ -125,8 +124,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         self.current_partner_nick = None
         self.current_language = 'en'
         self.chat_processor = None
-        self.browser_manager = BrowserManager(self.log)
-        self.bot_page = None
+        # Migrated to local LLM: browser_manager removed
         self.bot_running = False  # Flag for controlling main bot loop
         self.scanning_active = False  # Flag for controlling chat scanning
         self.bot_thread = None  # Thread for async loop
@@ -145,6 +143,8 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
 
         self.hotkey_phrases = {}
         self.global_prompt = ""
+        self.character_manifest = ""
+        self.character_greeting = ""
         self.use_translation_layer = False
         self._load_hotkey_settings()
 
@@ -210,14 +210,14 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
 
     def clear_chat_history(self):
         """
-        Clear the chat history in HiWaifu.
+        Clear the chat history in local LLM context.
         """
-        if self.browser_manager and self.bot_running:
-            self.log("Clearing HiWaifu chat history...", internal=True)
-            asyncio.run_coroutine_threadsafe(self.browser_manager.clear_chat_history(), self.loop)
+        if self.bot_running:
+            self.log("Clearing local LLM chat history...", internal=True)
+            self.ui.ollama_manager.clear_history()
             self.first_message_sent = False
         else:
-            self.log("Cannot clear chat: bot not running or browser not available.", internal=True)
+            self.log("Cannot clear chat: bot not running.", internal=True)
 
     def log(self, message, internal=False):
         """
@@ -374,24 +374,14 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
 
     async def _bot_loop(self):
         """
-        Improved main bot loop with automatic browser recovery.
-
-        Initializes processor, then runs the main processing loop in a restart loop
-        to handle browser crashes and automatically recover.
+        Main bot loop optimized for local LLM operation.
+        
+        Initializes processor and runs the main processing loop.
         """
         self.chat_processor = ChatProcessor(self.ignore_nicks, self.target_nicks, self.log, self.ocr_language)
 
         while self.bot_running:
             try:
-                self.log("Initializing browser session...", internal=True)
-                self.bot_page = await self.browser_manager.start()
-
-                # Browser initialization on startup
-                await self.browser_manager.open_first_chat()
-                await self.browser_manager.clear_chat_history()
-                await self.browser_manager.change_language('en')
-                self.current_language = 'en'
-
                 # Start main process
                 await self._main_loop()
 
@@ -399,20 +389,11 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                 if not self.bot_running:
                     break  # If stopped manually, don't restart
 
-                self.log(f"Browser or Loop error: {e}. Restarting in 5s...", internal=True)
+                self.log(f"Loop error: {e}. Restarting in 5s...", internal=True)
+                import traceback
+                self.log(traceback.format_exc(), internal=True)
                 await asyncio.sleep(5)  # Pause before recovery attempt
 
-                # Attempt soft closing of old resources before restart
-                try:
-                    await self.browser_manager.close()
-                except:
-                    pass
-
-        # Finally outside the loop
-        try:
-            await self.browser_manager.close()
-        except:
-            pass
         self.log("Bot loop finished.", internal=True)
 
     async def _main_loop(self):
@@ -533,15 +514,19 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                             
                             # Notify HiWaifu about the new pose and wait for response
                             notification_msg = f"{self.get_pose_message()} {pose_name}"
-                            self.log(f"Sending pose notification to HiWaifu: {notification_msg}", internal=True)
+                            self.log(f"Notifying LLM about the new pose: {notification_msg}", internal=True)
                             
-                            response = await self.browser_manager.send_message_and_get_response(notification_msg)
+                            response = await self.ui.ollama_manager.generate_response(
+                                notification_msg,
+                                system_prompt=self.global_prompt,
+                                manifest=self.character_manifest
+                            )
                             if response:
                                 processed_parts = self.chat_processor.process_message(response)
                                 await self.send_to_game(processed_parts, force=True)
-                                self.log("Pose response from HiWaifu inserted into game.", internal=True)
+                                self.log("Pose response from LLM inserted into game.", internal=True)
                             else:
-                                self.log("Failed to get pose response from HiWaifu.", internal=True)
+                                self.log("Failed to get pose response from LLM.", internal=True)
                             
                         self.waiting_for_pose_name = False
                         self.pending_pose_screenshot = None
@@ -584,9 +569,10 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                                 self.ui.hiwaifu_language_var.set(detected_lang)
                                 self.ui.root.after(0, lambda lang=detected_lang: self.ui.language_dropdown.set(lang))
                                 
-                                if self.browser_manager and self.browser_manager.page:
-                                    # Use the event loop from the thread
-                                    asyncio.run_coroutine_threadsafe(self.browser_manager.change_language(detected_lang), self.loop)
+                                if self.ui.ollama_manager.is_service_running():
+                                    self.log(f"OCR language changed to: {detected_lang}.", internal=True)
+                                    # Language logic is now purely local prompts and OCR
+                                    pass
                         else:
                             # Reset counter if previous language came
                             self.lang_consistency_counter = 0
@@ -596,17 +582,23 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                     llm_message = message
 
                     if not self.first_message_sent:
-                        # Simple greeting
-                        response = "Hello!"
+                        # Use character greeting from profile
+                        response = self.character_greeting if self.character_greeting else "Hello!"
                         self.first_message_sent = True
+                        self.log(f"Sending initial character greeting: {repr(response)}", internal=True)
                     else:
                         dot_task = asyncio.create_task(self._type_dot_in_game_loop())
-                        message_with_prompt = self._prepare_message_with_prompt(llm_message)
-
-                        # Use browser for response
-                        self.log(f"Sending to browser: {repr(message_with_prompt)}", internal=True)
-                        response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
-                        self.log(f"Browser response: {repr(response)}", internal=True)
+                        
+                        # Prepare user prompt with nick context if available
+                        user_input = f"{author}: {message}" if author else message
+                        self.log(f"Sending to local LLM: {repr(user_input)}", internal=True)
+                        
+                        response = await self.ui.ollama_manager.generate_response(
+                            user_input, 
+                            system_prompt=self.global_prompt, 
+                            manifest=self.character_manifest
+                        )
+                        self.log(f"LLM response: {repr(response)}", internal=True)
 
                         dot_task.cancel()
                         try:
@@ -620,9 +612,9 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                         processed_parts = self.chat_processor.process_message(response)
                         await self.send_to_game(processed_parts, force=True)
                         self.last_message_time = time.time()  # Update activity time after sending
-                        self.log("HiWaifu response inserted into game.", internal=True)
+                        self.log("LLM response inserted into game.", internal=True)
                     else:
-                        self.log("Failed to get response from HiWaifu.", internal=True)
+                        self.log("Failed to get response from local LLM.", internal=True)
 
                     await asyncio.sleep(SCAN_INTERVAL_ACTIVE)
                 else:
@@ -703,16 +695,20 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                     self.hooker_current_state = 'PAID'
                     self.hooker_timer_end = current_time + (extra_mins * 60)
 
-                    # Send success message to HiWaifu for processing
+                    # Send success message to LLM for processing
                     if self.hooker_hiwaifu_message:
-                        self.log(f"Sending payment confirmation to HiWaifu: {self.hooker_hiwaifu_message}", internal=True)
-                        response = await self.browser_manager.send_message_and_get_response(self.hooker_hiwaifu_message)
+                        self.log(f"Sending payment confirmation to LLM: {self.hooker_hiwaifu_message}", internal=True)
+                        response = await self.ui.ollama_manager.generate_response(
+                            self.hooker_hiwaifu_message,
+                            system_prompt=self.global_prompt,
+                            manifest=self.character_manifest
+                        )
                         if response:
                             processed_parts = self.chat_processor.process_message(response)
                             await self.send_to_game(processed_parts, force=True)
-                            self.log("Hooker Mod: Payment confirmation processed by HiWaifu and sent to game.", internal=True)
+                            self.log("Hooker Mod: Payment confirmation processed by LLM and sent to game.", internal=True)
                         else:
-                            self.log("Hooker Mod: Failed to get response from HiWaifu.", internal=True)
+                            self.log("Hooker Mod: Failed to get response from LLM.", internal=True)
                     else:
                         self.log("Hooker Mod: No custom payment message configured.", internal=True)
 

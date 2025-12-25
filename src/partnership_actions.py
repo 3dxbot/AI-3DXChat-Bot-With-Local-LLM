@@ -99,17 +99,18 @@ class PartnershipActionsMixin:
                         self.sending_in_progress = True
 
                         try:
-                            # Use browser manager to get the default/initial message from HiWaifu
-                            response = await self.browser_manager.get_default_message()
+                            # Use character greeting from profile (Migrated from browser manager)
+                            response = self.character_greeting if self.character_greeting else "Hello!"
 
                             if response:
+                                self.log(f"Using initial greeting from character profile: {repr(response)}", internal=True)
                                 processed_parts = self.chat_processor.process_message(response)
                                 await self.send_to_game(processed_parts, force=True)
                                 self.last_message_time = time.time()
                                 self.log("Greeting sent to game.", internal=True)
                                 self.first_message_sent = True
                             else:
-                                self.log("Failed to get greeting.", internal=True)
+                                self.log("Greeting empty, skipping.", internal=True)
                         finally:
                             self.sending_in_progress = False
                         return
@@ -310,10 +311,9 @@ class PartnershipActionsMixin:
             # 4. Then always click clothes -> put on all -> clothes
             await self._reset_clothes()
 
-            # Clear chat history after resetting clothes
-            if self.browser_manager and self.browser_manager.page:
-                self.log("Clearing browser chat history...", internal=True)
-                await self.browser_manager.clear_chat_history()
+            # 4. Clear local LLM conversation history
+            self.ui.ollama_manager.clear_history()
+            self.log("Local LLM chat history cleared.", internal=True)
 
             # Cleanup always performed
             if self.current_partner_nick and self.current_partner_nick in self.auto_added_nicks_session:
@@ -336,10 +336,8 @@ class PartnershipActionsMixin:
                 self.ui.hiwaifu_language_var.set('en')
                 self.log("Language set to English (default) in game UI.", internal=True)
                 
-                # Update browser language
-                if self.browser_manager and self.browser_manager.page:
-                    self.log("Resetting browser language to English...", internal=True)
-                    await self.browser_manager.change_language('en')
+                # Local language reset. No browser change needed.
+                pass
             else:
                 self.log("Language already set to English, skipping change.", internal=True)
             

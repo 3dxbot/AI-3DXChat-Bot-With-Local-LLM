@@ -61,6 +61,9 @@ class OllamaManager:
         # Threading for async operations
         self._service_thread = None
         self._stop_service_event = threading.Event()
+        
+        # Chat context history
+        self.chat_history = []
     
     def detect_ollama(self) -> bool:
         """
@@ -419,6 +422,85 @@ class OllamaManager:
         except Exception as e:
             self.logger.error(f"Error activating model {model_name}: {e}")
             return False
+
+    async def generate_response(self, prompt: str, system_prompt: str = "", manifest: str = "") -> Optional[str]:
+        """
+        Generate a response using the active model and maintain chat history (Asynchronous).
+        
+        Args:
+            prompt: User message.
+            system_prompt: System prompt from character.
+            manifest: Character manifest info.
+            
+        Returns:
+            Optional[str]: Generated response or None if failed.
+        """
+        model = self.status_manager.get_active_model()
+        if not model:
+            self.logger.error("No active model for generation")
+            return None
+            
+        # Prepare system context
+        full_system_prompt = ""
+        if system_prompt:
+            full_system_prompt += f"{system_prompt}\n\n"
+        if manifest:
+            full_system_prompt += f"Character Context:\n{manifest}"
+        
+        # Build messages for Ollama API
+        messages = []
+        if full_system_prompt.strip():
+            messages.append({"role": "system", "content": full_system_prompt})
+        
+        # Add history
+        messages.extend(self.chat_history)
+        
+        # Add current prompt
+        messages.append({"role": "user", "content": prompt})
+        
+        try:
+            self.logger.info(f"Generating async response from model '{model}'...")
+            
+            # Run blocking request in a separate thread to keep the event loop responsive
+            import asyncio
+            def make_request():
+                return requests.post(
+                    f"{self.api_base_url}/api/chat",
+                    json={
+                        "model": model,
+                        "messages": messages,
+                        "stream": False
+                    },
+                    timeout=120
+                )
+
+            response = await asyncio.to_thread(make_request)
+            
+            if response.status_code == 200:
+                data = response.json()
+                assistant_message = data.get("message", {}).get("content", "")
+                
+                # Update local history
+                self.chat_history.append({"role": "user", "content": prompt})
+                self.chat_history.append({"role": "assistant", "content": assistant_message})
+                
+                # Keep history manageable (last 20 messages)
+                if len(self.chat_history) > 20:
+                    self.chat_history = self.chat_history[-20:]
+                
+                return assistant_message
+            else:
+                error_msg = f"Ollama HTTP {response.status_code}: {response.text}"
+                self.logger.error(f"Generation failed: {error_msg}")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error generating response: {e}")
+            return None
+
+    def clear_history(self):
+        """Clear the current conversation context history."""
+        self.chat_history = []
+        self.logger.info("Chat history cleared in OllamaManager.")
     
     def _run_service(self):
         """Run Ollama service in background thread."""

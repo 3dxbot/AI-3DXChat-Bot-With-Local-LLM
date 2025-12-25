@@ -10,10 +10,8 @@ Configuration Categories:
     - OCR and timing settings
     - UI visualization colors
     - Image resource paths
-    - HiWaifu web selectors
     - File paths for settings and storage
-    - Chat management selectors
-    - Language settings selectors
+    - Ollama API and service settings
 """
 
 import os
@@ -85,20 +83,9 @@ USE_MULTIPROCESSING = True
 # Translation Layer Settings
 USE_TRANSLATION_LAYER = False
 
-# URL and selectors for HiWaifu
-HIWAIFU_URL = "https://beta.hiwaifu.com/"
-HIWAIFU_TEXT_AREA = "//textarea[@class='el-textarea__inner']"
-HIWAIFU_TYPING_MESSAGE = "//div[text()='Typing...']"
-HIWAIFU_BOT_MESSAGE_SELECTOR = "div.bot-const"
-HIWAIFU_BOT_TYPING_SELECTOR = "//div[text()='Typing...']"
-HIWAIFU_COPY_BUTTON_SELECTOR = "div.Edit img[src*='Vector_2']"
-
 # File for saving settings
 SETTINGS_FILE = os.path.join(BASE_DIR, 'config', 'chatbot_settings.json')
 HOTKEY_PHRASES_FILE = os.path.join(BASE_DIR, 'config', 'hotkey_phrases.json')
-
-# File for saving browser state (cookies and sessions)
-STORAGE_STATE_FILE = os.path.join(BASE_DIR, 'config', 'storage_state.json')
 
 # Directory for character profiles
 CHARACTERS_DIR = os.path.join(BASE_DIR, 'config', 'characters')

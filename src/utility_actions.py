@@ -86,8 +86,7 @@ class UtilityActionsMixin:
         """
         Change the OCR and interface language.
 
-        Updates the OCR language settings and requests language change
-        in the browser if the bot is running.
+        Updates the OCR language settings and applies it to the processor.
 
         Args:
             language (str): The language code to switch to.
@@ -97,10 +96,7 @@ class UtilityActionsMixin:
         self.save_settings()
         self.log(f"OCR language updated to {self.ocr_language}.", internal=True)
 
-        if self.bot_running and self.loop and self.browser_manager:
-            self.log(f"Requesting language change in HiWaifu to {language}...", internal=True)
-            asyncio.run_coroutine_threadsafe(self.browser_manager.change_language(language), self.loop)
-            if self.chat_processor:
-                self.chat_processor.ocr_language = self.ocr_language
-        else:
-            self.log("Bot not running. Language changed locally, will apply on startup.", internal=True)
+        if self.chat_processor:
+            self.chat_processor.ocr_language = self.ocr_language
+        
+        self.log("Language change applied locally.", internal=True)

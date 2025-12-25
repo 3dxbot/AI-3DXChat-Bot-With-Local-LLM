@@ -153,19 +153,24 @@ class ChatActionsMixin:
                 self.sending_in_progress = False
                 return
 
-            message_with_prompt = self._prepare_message_with_prompt(phrase)
+            # Prepare system context and user message
+            user_input = f"{self.current_partner_nick}: {phrase}" if self.current_partner_nick else phrase
             
-            # Use the browser-based HiWaifu chat
-            response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
+            # Use local LLM for response
+            response = await self.ui.ollama_manager.generate_response(
+                user_input,
+                system_prompt=self.global_prompt,
+                manifest=self.character_manifest
+            )
 
             if response:
-                self.log(f"Received response for key {key}: {response[:50]}...", internal=True)
+                self.log(f"Received LLM response for key {key}: {response[:50]}...", internal=True)
                 processed_parts = self.chat_processor.process_message(response)
                 await self.send_to_game(processed_parts, force=True)
                 self.last_message_time = time.time()  # Update activity time after sending
                 self.log(f"Response for key {key} inserted into game.", internal=True)
             else:
-                self.log(f"Failed to get response for key {key}.", internal=True)
+                self.log(f"Failed to get LLM response for key {key}.", internal=True)
                 self.sending_in_progress = False
         except Exception as e:
             self.log(f"Error processing hotkey: {e}", internal=True)
@@ -211,10 +216,16 @@ class ChatActionsMixin:
             self.log("Activating input field for manual request...", internal=True)
             dot_task = asyncio.create_task(self._type_dot_in_game_loop())
             
-            message_with_prompt = self._prepare_message_with_prompt(message)
+            # Prepare user prompt with nick context if available
+            user_input = f"{self.current_partner_nick}: {message}" if self.current_partner_nick else message
+            self.log(f"Sending manual request to LLM: {repr(user_input)}", internal=True)
             
-            # Use the browser-based HiWaifu chat
-            response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
+            # Use local LLM for response
+            response = await self.ui.ollama_manager.generate_response(
+                user_input,
+                system_prompt=self.global_prompt,
+                manifest=self.character_manifest
+            )
 
             dot_task.cancel()
             try:
@@ -225,13 +236,13 @@ class ChatActionsMixin:
             await self._erase_input_field()
 
             if response:
-                self.log(f"Received response: {response[:50]}...", internal=True)
+                self.log(f"Received LLM response: {response[:50]}...", internal=True)
                 processed_text = self.chat_processor.process_message(response)
                 await self.send_to_game(processed_text, force=True)
                 self.last_message_time = time.time()  # Update activity time after sending
                 self.log("Response inserted and sent to game.", internal=True)
             else:
-                self.log("❌ Error: Failed to get response from HiWaifu.", internal=True)
+                self.log("❌ Error: Failed to get response from local LLM.", internal=True)
                 self.sending_in_progress = False
         except Exception as e:
             self.log(f"Error processing request: {e}", internal=True)
@@ -263,50 +274,27 @@ class ChatActionsMixin:
 
     async def get_chat_response(self, message):
         """
-        Direct async method to get a response from the LLM/Browser.
+        Direct async method to get a response from the LLM.
         Useful for UI-only chat where game interaction is optional.
         """
         try:
-            message_with_prompt = self._prepare_message_with_prompt(message)
+            # Prepare user prompt with nick context if available
+            user_input = f"{self.current_partner_nick}: {message}" if self.current_partner_nick else message
             
-            # Use browser for now, but design allows switching and captured for UI
             self.log(f"UI Chat Request: {message[:50]}...", internal=True)
-            response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
+            response = await self.ui.ollama_manager.generate_response(
+                user_input,
+                system_prompt=self.global_prompt,
+                manifest=self.character_manifest
+            )
             return response
         except Exception as e:
-            self.log(f"Error getting chat response: {e}", internal=True)
+            self.log(f"Error getting local chat response: {e}", internal=True)
             return None
 
     def clear_chat_history(self):
         """
-        Clear bot conversation history and browser state.
-        This resets the session in the browser.
+        Clear bot conversation history in local LLM context.
         """
-        if hasattr(self, 'browser_manager'):
-            # Trigger clearing of chat history in the browser
-            asyncio.run_coroutine_threadsafe(self.browser_manager.clear_chat_history(), self.loop)
-            self.log("Chat history cleared (reset signal sent to browser).", internal=True)
-
-    async def get_chat_response(self, message):
-        """
-        Direct async method to get a response from the LLM/Browser.
-        Useful for UI-only chat where game interaction is optional.
-        """
-        try:
-            message_with_prompt = self._prepare_message_with_prompt(message)
-            response = await self.browser_manager.send_message_and_get_response(message_with_prompt)
-            return response
-        except Exception as e:
-            self.log(f"Error getting chat response: {e}", internal=True)
-            return None
-
-    def clear_chat_history(self):
-        """
-        Clear bot conversation history and browser state.
-        This resets the session in the browser.
-        """
-        if hasattr(self, 'browser_manager'):
-            # This would ideally trigger a 'new chat' or reload in the browser
-            # For now, let's assume we reload the chat page or send a reset signal
-            asyncio.run_coroutine_threadsafe(self.browser_manager.reset_chat(), self.loop)
-            self.log("Chat history cleared (reset signal sent to browser).", internal=True)
+        self.ui.ollama_manager.clear_history()
+        self.log("Chat history cleared (local LLM history reset).", internal=True)
