@@ -341,6 +341,10 @@ class UICharacterMixin:
             self.bot.character_greeting = self.current_character.greeting
             self.bot.character_manifest = self.current_character.manifest
             self.bot.save_settings()
+            
+            # Sync with StatusManager for UI-wide tracking
+            if hasattr(self, 'status_manager'):
+                self.status_manager.set_active_character(self.active_character_name)
 
         # Update Chat UI if available
         if hasattr(self, '_display_character_greeting'):
@@ -369,6 +373,11 @@ class UICharacterMixin:
                         data = json.load(f)
                         char = CharacterProfile.from_dict(data)
                         self.characters[char.name] = char
+                        
+                        # Sync active character with status manager if this is the one
+                        if hasattr(self, 'active_character_name') and char.name == self.active_character_name:
+                            if hasattr(self, 'status_manager'):
+                                self.status_manager.set_active_character(char.name)
                 except Exception as e:
                     print(f"Error loading character {filename}: {e}")
 

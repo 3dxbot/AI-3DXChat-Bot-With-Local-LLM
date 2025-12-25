@@ -60,10 +60,12 @@ class OllamaUI:
         self.download_progress = None
         self.download_status = None
         self.model_dropdown = None
+        self.active_char_label = None
         
         # Bind status callbacks
         self.status_manager.add_callback('ollama_status', self._on_ollama_status_change)
         self.status_manager.add_callback('active_model', self._on_active_model_change)
+        self.status_manager.add_callback('active_character', self._on_active_character_change)
     
     def format_bytes(self, b: int) -> str:
         """Format bytes to human readable format."""
@@ -135,9 +137,34 @@ class OllamaUI:
         )
         self.active_model_label.pack(side='left', padx=(UIStyles.SPACE_SM, 0))
         
+        # Character Profile info (New)
+        char_info = ctk.CTkFrame(ollama_zone, fg_color="transparent")
+        char_info.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_LG))
+        
+        char_text = ctk.CTkLabel(
+            char_info,
+            text="Active Profile:",
+            font=UIStyles.FONT_NORMAL,
+            text_color=UIStyles.TEXT_TERTIARY
+        )
+        char_text.pack(side='left')
+        
+        self.active_char_label = ctk.CTkLabel(
+            char_info,
+            text="None",
+            font=UIStyles.FONT_NORMAL,
+            text_color=UIStyles.PRIMARY_COLOR
+        )
+        self.active_char_label.pack(side='left', padx=(UIStyles.SPACE_SM, 0))
+
         # Trigger initial status sync
         current_status = self.status_manager.get_ollama_status()
         self._on_ollama_status_change(current_status, "")
+        
+        # Initial character sync
+        current_char = self.status_manager.get_active_character()
+        if current_char:
+            self._on_active_character_change(current_char, None)
         
         return ollama_zone
     
@@ -529,6 +556,15 @@ class OllamaUI:
     def _on_active_model_change(self, new_model: Optional[str], old_model: Optional[str]):
         """Handle active model changes."""
         self.parent.after(0, lambda: self._handle_active_model_ui_update(new_model))
+
+    def _on_active_character_change(self, new_char: Optional[str], old_char: Optional[str]):
+        """Handle active character profile changes."""
+        self.parent.after(0, lambda: self._handle_active_character_ui_update(new_char))
+
+    def _handle_active_character_ui_update(self, new_char):
+        char_text = new_char if new_char else "None"
+        if hasattr(self, 'active_char_label') and self.active_char_label:
+            self.active_char_label.configure(text=char_text)
 
     def _handle_active_model_ui_update(self, new_model):
         model_text = new_model if new_model else "None"

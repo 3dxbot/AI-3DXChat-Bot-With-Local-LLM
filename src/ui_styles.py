@@ -58,6 +58,11 @@ class UIStyles:
     WARNING_COLOR = "#f59e0b"     # Amber-500
     ERROR_COLOR = "#ef4444"       # Red-500
     
+    # Chat Colors
+    CHAT_BOT_BUBBLE = "#db2777"    # Pink-600 (Vibrant Pink)
+    CHAT_USER_BUBBLE = "#4f46e5"   # Indigo-600 (Slightly darker for contrast)
+    CHAT_USER_BUBBLE_LIGHT = "#c7d2fe" # Indigo-200 (For text or accents)
+    
     # ==========================================
     # TYPOGRAPHY
     # ==========================================
@@ -94,6 +99,9 @@ class UIStyles:
     FONT_BUTTON = (FONT_FAMILY, FONT_SIZE_NORMAL, "bold")
     FONT_NORMAL = (FONT_FAMILY, FONT_SIZE_NORMAL)
     FONT_SMALL = (FONT_FAMILY, FONT_SIZE_SMALL)
+    FONT_SMALL_BOLD = (FONT_FAMILY, FONT_SIZE_SMALL, "bold")
+    FONT_TINY = (FONT_FAMILY, FONT_SIZE_TINY)
+    FONT_TINY_BOLD = (FONT_FAMILY, FONT_SIZE_TINY, "bold")
     FONT_MONO = (FONT_FAMILY_MONO, FONT_SIZE_SMALL)
     
     # ==========================================

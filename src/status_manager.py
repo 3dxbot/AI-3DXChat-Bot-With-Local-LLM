@@ -37,13 +37,15 @@ class StatusManager:
         # Status tracking
         self._ollama_status = "Checking"
         self._active_model = None
+        self._active_character = None
         self._model_status = {}
         
         # Callbacks
         self._callbacks = {
             'ollama_status': [],
             'model_status': [],
-            'active_model': []
+            'active_model': [],
+            'active_character': []
         }
         
         # Monitoring
@@ -96,6 +98,29 @@ class StatusManager:
     def get_active_model(self) -> Optional[str]:
         """Get currently active model."""
         return self._active_model
+    
+    def set_active_character(self, char_name: Optional[str]):
+        """
+        Set active character profile name.
+        
+        Args:
+            char_name: Name of the active character, or None.
+        """
+        old_char = self._active_character
+        self._active_character = char_name
+        
+        self.logger.info(f"Active character changed: {old_char} -> {char_name}")
+        
+        # Notify callbacks
+        for callback in self._callbacks['active_character']:
+            try:
+                callback(char_name, old_char)
+            except Exception as e:
+                self.logger.error(f"Error in active character callback: {e}")
+                
+    def get_active_character(self) -> Optional[str]:
+        """Get currently active character profile name."""
+        return self._active_character
     
     def set_model_status(self, model_name: str, status: str):
         """

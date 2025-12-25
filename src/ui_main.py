@@ -188,9 +188,17 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         """
         if hasattr(self, 'start_button'):
             if new_status == "Running":
-                self.start_button.configure(state="normal", fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669")
+                self.root.after(0, lambda: self.start_button.configure(
+                    state="normal", 
+                    fg_color=UIStyles.SUCCESS_COLOR, 
+                    hover_color="#059669"
+                ))
             else:
-                self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)
+                self.root.after(0, lambda: self.start_button.configure(
+                    state="disabled", 
+                    fg_color=UIStyles.DISABLED_COLOR, 
+                    hover_color=UIStyles.DISABLED_COLOR
+                ))
 
     def _on_active_model_changed_persistence(self, new_model, old_model):
         """Handle active model changes for persistence."""

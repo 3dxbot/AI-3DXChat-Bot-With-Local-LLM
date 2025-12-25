@@ -9,6 +9,7 @@ import tkinter as tk
 import customtkinter as ctk
 from .ui_styles import UIStyles
 import asyncio
+from typing import Optional
 
 class UIChatMixin:
     """Mixin class for the Chat interface."""
@@ -35,13 +36,28 @@ class UIChatMixin:
         header.grid(row=0, column=0, sticky="ew", padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
         header.columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(header, text="Chat Room", 
+        self.chat_title_label = ctk.CTkLabel(header, text="Chat Room", 
                       font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"), 
-                      text_color=UIStyles.TEXT_PRIMARY).grid(row=0, column=0, sticky="w")
+                      text_color=UIStyles.TEXT_PRIMARY)
+        self.chat_title_label.grid(row=0, column=0, sticky="w")
+
+        # Active character indicator (Small)
+        self.chat_active_char_label = ctk.CTkLabel(header, text="", 
+                                                   font=UIStyles.FONT_SMALL, 
+                                                   text_color=UIStyles.PRIMARY_COLOR)
+        self.chat_active_char_label.grid(row=1, column=0, sticky="w")
 
         UIStyles.create_secondary_button(header, text="Clear History", 
                                         command=self.clear_chat_history_ui, 
-                                        width=120, height=28).grid(row=0, column=1, sticky="e")
+                                        width=120, height=28).grid(row=0, column=1, rowspan=2, sticky="e")
+        
+        # Subscribe to character changes
+        if hasattr(self, 'status_manager'):
+            self.status_manager.add_callback('active_character', self._on_chat_active_char_change)
+            # Initial update
+            curr_char = self.status_manager.get_active_character()
+            if curr_char:
+                self._on_chat_active_char_change(curr_char, None)
 
         # 2. Chat History Area
         # We use a non-scrollable character_frame at the top level, but THIS card is scrollable for messages
@@ -96,19 +112,38 @@ class UIChatMixin:
         bubble_row.pack(fill="x", pady=10)
         
         # The bubble itself
-        bg_color = UIStyles.SURFACE_COLOR if is_bot else UIStyles.PRIMARY_COLOR
-        bubble = ctk.CTkFrame(bubble_row, fg_color=bg_color, corner_radius=15)
-        bubble.pack(side="left" if is_bot else "right", padx=padx_outer)
+        bg_color = UIStyles.CHAT_BOT_BUBBLE if is_bot else UIStyles.CHAT_USER_BUBBLE
+        # Expert UI: Rounded corners, subtle border, deeper shadow (simulated)
+        bubble = ctk.CTkFrame(
+            bubble_row, 
+            fg_color=bg_color, 
+            corner_radius=20,
+            border_width=1,
+            border_color="#475569" # Subtle Slate-600 border
+        )
+        bubble.pack(side="left" if is_bot else "right", padx=padx_outer, pady=2)
         
-        # Author label (optional, small)
-        author_color = UIStyles.TEXT_SECONDARY if is_bot else "#c7d2fe" # Light indigo for user
-        # ctk.CTkLabel(bubble, text=author, font=UIStyles.FONT_TINY, text_color=author_color).pack(anchor="w", padx=15, pady=(5, 0))
+        # Author label - Bold and slightly larger for better readability
+        author_color = "#fbcfe8" if is_bot else "#c7d2fe"
+        author_label = ctk.CTkLabel(
+            bubble, 
+            text=author, 
+            font=UIStyles.FONT_SMALL_BOLD, 
+            text_color=author_color
+        )
+        author_label.pack(anchor="w", padx=15, pady=(10, 0))
         
-        # Message text
+        # Message text - Standardized wraplength and better line spacing
         text_color = UIStyles.TEXT_PRIMARY
-        msg_label = ctk.CTkLabel(bubble, text=message, font=UIStyles.FONT_NORMAL, 
-                                  text_color=text_color, wraplength=400, justify="left")
-        msg_label.pack(padx=15, pady=(8, 10))
+        msg_label = ctk.CTkLabel(
+            bubble, 
+            text=message, 
+            font=UIStyles.FONT_NORMAL, 
+            text_color=text_color, 
+            wraplength=380, 
+            justify="left"
+        )
+        msg_label.pack(anchor="w", padx=15, pady=(2, 12))
 
     def _refresh_chat_display(self):
         """Clear and re-render all messages."""
@@ -134,9 +169,11 @@ class UIChatMixin:
 
     async def _async_chat_request(self, message):
         """Send message to Roxy and capture response."""
+        active_name = getattr(self.bot, 'active_character_name', "Roxy")
+        
         # Add thinking indicator
         thinking_id = "thinking_" + str(len(self.chat_messages))
-        self.root.after(0, lambda: self._add_message("Roxy", "...", is_bot=True, msg_id=thinking_id))
+        self.root.after(0, lambda: self._add_message(active_name, "...", is_bot=True, msg_id=thinking_id))
         
         try:
             if hasattr(self.bot, 'get_chat_response'):
@@ -170,3 +207,9 @@ class UIChatMixin:
             if hasattr(self.bot, 'clear_chat_history'):
                 self.bot.clear_chat_history()
             self._display_character_greeting()
+
+    def _on_chat_active_char_change(self, new_char: Optional[str], old_char: Optional[str]):
+        """Callback for active character change."""
+        if hasattr(self, 'chat_active_char_label') and self.chat_active_char_label:
+            text = f"Speaking with: {new_char}" if new_char else "No active profile"
+            self.chat_active_char_label.configure(text=text)

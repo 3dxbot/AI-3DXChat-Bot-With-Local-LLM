@@ -459,40 +459,51 @@ class OllamaManager:
         messages.append({"role": "user", "content": prompt})
         
         try:
+            start_time = time.time()
             self.logger.info(f"Generating async response from model '{model}'...")
+            self.logger.debug(f"Payload: {len(messages)} messages, total chars in last prompt: {len(prompt)}")
             
             # Run blocking request in a separate thread to keep the event loop responsive
             import asyncio
             def make_request():
-                return requests.post(
-                    f"{self.api_base_url}/api/chat",
-                    json={
-                        "model": model,
-                        "messages": messages,
-                        "stream": False
-                    },
-                    timeout=120
-                )
+                try:
+                    url = f"{self.api_base_url}/api/chat"
+                    self.logger.debug(f"Requesting Ollama at {url}")
+                    return requests.post(
+                        url,
+                        json={
+                            "model": model,
+                            "messages": messages,
+                            "stream": False
+                        },
+                        timeout=120 # Increased timeout for slower models/loading
+                    )
+                except requests.exceptions.RequestException as e:
+                    self.logger.error(f"Ollama API request failed: {e}")
+                    return None
 
-            response = await asyncio.to_thread(make_request)
+            response_obj = await asyncio.to_thread(make_request)
             
-            if response.status_code == 200:
-                data = response.json()
-                assistant_message = data.get("message", {}).get("content", "")
-                
-                # Update local history
-                self.chat_history.append({"role": "user", "content": prompt})
-                self.chat_history.append({"role": "assistant", "content": assistant_message})
-                
-                # Keep history manageable (last 20 messages)
-                if len(self.chat_history) > 20:
-                    self.chat_history = self.chat_history[-20:]
-                
-                return assistant_message
-            else:
-                error_msg = f"Ollama HTTP {response.status_code}: {response.text}"
-                self.logger.error(f"Generation failed: {error_msg}")
+            if response_obj is None:
                 return None
+
+            duration = time.time() - start_time
+            self.logger.info(f"Ollama response received in {duration:.2f}s (Status: {response_obj.status_code})")
+            
+            if response_obj.status_code != 200:
+                self.logger.error(f"Ollama error {response_obj.status_code}: {response_obj.text}")
+                return None
+                
+            data = response_obj.json()
+            response_text = data.get("message", {}).get("content", "")
+            
+            if response_text:
+                self.chat_history.append({"role": "assistant", "content": response_text})
+                # Keep history manageable
+                if len(self.chat_history) > 20: 
+                    self.chat_history = self.chat_history[-20:]
+            
+            return response_text
         except Exception as e:
             self.logger.error(f"Error generating response: {e}")
             return None
