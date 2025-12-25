@@ -28,6 +28,8 @@ from .config import (SETTINGS_FILE, TESSERACT_PATH, SCAN_INTERVAL_IDLE, SCAN_INT
 from .chat_processor import ChatProcessor
 from .utils import extract_text_from_image, extract_digits_from_image
 from .translation_manager import TranslationManager
+from .rag.memory_manager import MemoryManager
+from .chat_memory import ChatMemory
 
 # Import mixins
 from .bot_settings import BotSettingsMixin
@@ -149,6 +151,13 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         self.character_greeting = ""
         self.use_translation_layer = False
         self._load_hotkey_settings()
+        
+        # RAG Memory System
+        self.memory_manager = None
+        self.active_character_name = None
+        
+        # Chat Memory System (Short-term memory with summarization)
+        self.chat_memory = ChatMemory(recent_limit=12, summary_trigger_limit=20)
 
         # Set path to Tesseract executable
         pytesseract.pytesseract.tesseract_cmd = TESSERACT_PATH
@@ -214,13 +223,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         """
         Clear bot conversation history in local LLM context and UI.
         """
-        self.ui.ollama_manager.clear_history()
-        if hasattr(self.ui, 'chat_messages'):
-            self.ui.chat_messages = []
-            if hasattr(self.ui, '_refresh_chat_display'):
-                self.ui.root.after(0, self.ui._refresh_chat_display)
-        self.log("Chat history cleared (LLM memory and UI reset).", internal=True)
-        self.first_message_sent = False
+        self.clear_all_memory()
 
     def log(self, message, internal=False):
         """
@@ -360,12 +363,115 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         self.pending_pose_screenshot = None
         self.pending_accept_location = None
         self.log("Bot memory cleared (except ignore list).", internal=True)
+        
+        # Clear RAG memory manager
+        self.memory_manager = None
 
         if wait and self.bot_thread and self.bot_thread.is_alive():
             self.bot_thread.join(timeout=1)
         self.log("Bot stopped.", internal=True)
         self.ui.update_status("Not running")
         self.ui.update_buttons_state(False)
+    
+    def initialize_memory_manager(self, character_name: str, character_path: str):
+        """
+        Initialize the RAG memory manager for the active character.
+        
+        Args:
+            character_name (str): Name of the character.
+            character_path (str): Path to the character JSON file.
+        """
+        try:
+            from .config import CHARACTERS_DIR
+            self.active_character_name = character_name
+            
+            # Create memory manager
+            self.memory_manager = MemoryManager(character_name, character_path)
+            
+            # Load or create index
+            success = self.memory_manager.load_or_create_index()
+            
+            if success:
+                card_count = self.memory_manager.get_card_count()
+                self.log(f"Memory manager initialized for '{character_name}' with {card_count} cards.", internal=True)
+            else:
+                self.log(f"Failed to initialize memory manager for '{character_name}'.", internal=True)
+                self.memory_manager = None
+                
+        except Exception as e:
+            self.log(f"Error initializing memory manager: {e}", internal=True)
+            self.memory_manager = None
+    
+    def add_chat_message(self, role: str, content: str):
+        """
+        Add a message to chat memory and handle summarization.
+        
+        Args:
+            role (str): Message role ("user" or "assistant").
+            content (str): Message content.
+        """
+        self.chat_memory.add_message(role, content)
+        
+        # Check if summarization is needed
+        if self.chat_memory.is_ready_for_summarization():
+            self._handle_summarization()
+    
+    def _handle_summarization(self):
+        """Handle automatic summarization of conversation."""
+        pending = self.chat_memory.get_pending_summarization()
+        if not pending:
+            return
+        
+        try:
+            # Create summarization prompt
+            summarization_prompt = pending['prompt']
+            
+            # Generate summary using Ollama
+            summary_response = self.ui.ollama_manager.generate_response(
+                summarization_prompt,
+                system_prompt="You are a helpful assistant that summarizes conversations.",
+                manifest=""
+            )
+            
+            if summary_response:
+                # Process the summary
+                self.chat_memory.process_summarization_result(summary_response)
+                self.log(f"Conversation summarized. Summary length: {len(self.chat_memory.summary)} chars", internal=True)
+            else:
+                self.log("Failed to generate conversation summary.", internal=True)
+                
+        except Exception as e:
+            self.log(f"Summarization failed: {e}", internal=True)
+    
+    def get_chat_context(self) -> str:
+        """
+        Get chat context including summary and recent messages.
+        
+        Returns:
+            str: Formatted chat context.
+        """
+        return self.chat_memory.get_context_for_llm()
+    
+    def clear_all_memory(self):
+        """Clear all memory systems (RAG, chat memory, and Ollama history)."""
+        # Clear RAG memory
+        self.memory_manager = None
+        self.active_character_name = None
+        
+        # Clear chat memory
+        self.chat_memory.clear()
+        
+        # Clear Ollama history
+        self.ui.ollama_manager.clear_history()
+        
+        # Clear UI chat messages
+        if hasattr(self.ui, 'chat_messages'):
+            self.ui.chat_messages = []
+            if hasattr(self.ui, '_refresh_chat_display'):
+                self.ui.root.after(0, self.ui._refresh_chat_display)
+        
+        self.log("All memory systems cleared (RAG, chat memory, and UI).", internal=True)
+        self.first_message_sent = False
 
     def _run_async_wrapper(self):
         """
@@ -470,6 +576,37 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                 self.ui.root.after(0, self.ui.update_switch_colors)
             self.log(f"Auto-enabling translation layer for {self.current_language}.", internal=True)
 
+    def _get_memory_context(self, query: str) -> str:
+        """
+        Get memory context from RAG system.
+        
+        Args:
+            query (str): User message to search memory for.
+            
+        Returns:
+            str: Formatted memory context or empty string.
+        """
+        try:
+            if not self.memory_manager or not self.active_character_name:
+                return ""
+            
+            # Search memory for relevant cards
+            relevant_cards = self.memory_manager.search(query, k=3)
+            
+            if not relevant_cards:
+                return ""
+            
+            # Format context for LLM
+            context_lines = ["Relevant character information:"]
+            for i, card in enumerate(relevant_cards, 1):
+                context_lines.append(f"{i}. {card}")
+            
+            return "\n".join(context_lines)
+            
+        except Exception as e:
+            self.log(f"Memory search failed: {e}", internal=True)
+            return ""
+
     async def get_translated_response(self, message, author=None):
         """
         Unified method to handle language detection, translation, LLM call, and response translation.
@@ -481,12 +618,29 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         # 2. Translate User Input
         translated_input = self.translate_user_input(message)
         
-        # 3. Format for LLM
+        # 3. Get Memory Context (RAG)
+        memory_context = self._get_memory_context(translated_input)
+        
+        # 4. Get Chat Context (Short-term memory with summarization)
+        chat_context = self.get_chat_context()
+        
+        # 5. Format for LLM
         nick = author if author else self.current_partner_nick
         llm_input = f"{nick}: {translated_input}" if nick else translated_input
-        self.log(f"LLM Input (Translated): {repr(llm_input)}", internal=True)
         
-        # 4. Generate Response
+        # 6. Include memory context if available
+        if memory_context:
+            llm_input = f"{memory_context}\n\nUser: {llm_input}"
+            self.log(f"LLM Input with Memory Context: {repr(llm_input)}", internal=True)
+        else:
+            self.log(f"LLM Input (Translated): {repr(llm_input)}", internal=True)
+        
+        # 7. Include chat context if available
+        if chat_context:
+            llm_input = f"{chat_context}\n\n{llm_input}"
+            self.log(f"LLM Input with Chat Context: {repr(llm_input)}", internal=True)
+        
+        # 8. Generate Response
         response = await self.ui.ollama_manager.generate_response(
             llm_input,
             system_prompt=self.global_prompt,
@@ -494,8 +648,12 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         )
         
         if response:
-            # 5. Translate Response Back
+            # 9. Translate Response Back
             translated_response = self.translate_bot_response(response)
+            
+            # 10. Add bot response to chat memory
+            self.add_chat_message("assistant", translated_response)
+            
             return translated_response
         return None
 
@@ -634,6 +792,9 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                             message = updated_messages[0]['message']
                         pose_name = message.strip()
                         self.log(f"Received pose name from user: {pose_name}", internal=True)
+                        
+                        # Add pose name message to chat memory
+                        self.add_chat_message("user", pose_name)
                         if pose_name and self.pending_accept_location:
                             self.last_pose_action_time = time.time()
                             await self._save_named_pose_screenshot(pose_name, self.pending_pose_screenshot)
@@ -665,6 +826,9 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                     # Update current partner if recognized
                     if author:
                         self.current_partner_nick = author
+
+                    # Add user message to chat memory
+                    self.add_chat_message("user", message)
 
                     # Automatic language switching based on detected language
                     self.handle_language_detection(message)

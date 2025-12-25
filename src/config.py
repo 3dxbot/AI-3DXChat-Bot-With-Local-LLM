@@ -92,6 +92,10 @@ HOTKEY_PHRASES_FILE = os.path.join(BASE_DIR, 'config', 'hotkey_phrases.json')
 # Directory for character profiles
 CHARACTERS_DIR = os.path.join(BASE_DIR, 'config', 'characters')
 
+# RAG System Directories
+RAG_MODELS_DIR = os.path.join(BASE_DIR, 'bin', 'rag_model')
+RAG_VECTORS_DIR = os.path.join(BASE_DIR, 'data', 'vectors')
+
 # Chat history reset
 RIGHT_UP_ARROW = ".expand-box"
 SAVE_AND_START_NEW_CHAT = "//span[text()='Save and Start New Chat']"
