@@ -47,6 +47,9 @@ class UIChatMixin:
                                                    text_color=UIStyles.PRIMARY_COLOR)
         self.chat_active_char_label.grid(row=1, column=0, sticky="w")
 
+        if not hasattr(self, 'chat_messages'):
+            self._initialize_chat_vars()
+
         UIStyles.create_secondary_button(header, text="Clear History", 
                                         command=self.clear_chat_history_ui, 
                                         width=120, height=28).grid(row=0, column=1, rowspan=2, sticky="e")
@@ -90,19 +93,30 @@ class UIChatMixin:
 
     def _display_character_greeting(self):
         """Show the greeting from the current active character."""
+        if not hasattr(self, 'chat_messages'):
+            self._initialize_chat_vars()
+            
         active_name = getattr(self.bot, 'active_character_name', None)
         if active_name and hasattr(self.bot, 'character_greeting') and self.bot.character_greeting:
-            self._add_message(active_name, self.bot.character_greeting, is_bot=True)
+            # Check if greeting is already the last message to avoid duplicates on re-activations
+            if not self.chat_messages or self.chat_messages[-1][1] != self.bot.character_greeting:
+                self._add_message(active_name, self.bot.character_greeting, is_bot=True)
 
     def _add_message(self, author, message, is_bot=False, msg_id=None):
-        """Add a message to the internal list and update display."""
+        """Add a message to the internal list and update display if initialized."""
         self.chat_messages.append((author, message, is_bot, msg_id))
-        self._render_message(author, message, is_bot)
-        # Auto-scroll
-        self.root.after(100, lambda: self.chat_scroll_frame._parent_canvas.yview_moveto(1.0))
+        
+        # Only render if UI is initialized
+        if hasattr(self, 'chat_scroll_frame') and self.chat_scroll_frame:
+            self._render_message(author, message, is_bot)
+            # Auto-scroll
+            self.root.after(100, lambda: self.chat_scroll_frame._parent_canvas.yview_moveto(1.0))
 
     def _render_message(self, author, message, is_bot=False):
-        """Create a message bubble in the scroll frame."""
+        """Create a message bubble in the scroll frame if initialized."""
+        if not hasattr(self, 'chat_scroll_frame') or not self.chat_scroll_frame:
+            return
+
         # Bubble alignment
         align = "w" if is_bot else "e"
         padx_outer = (20, 100) if is_bot else (100, 20)

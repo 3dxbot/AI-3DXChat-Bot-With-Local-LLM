@@ -74,7 +74,9 @@ OLLAMA_MODELS_DIR = os.path.join(OLLAMA_DIR, "models")
 OLLAMA_TEMP_DIR = os.path.join(OLLAMA_DIR, "temp")
 
 # Ollama API settings
-OLLAMA_API_URL = "http://localhost:11434"
+OLLAMA_HOST = "127.0.0.1"
+OLLAMA_PORT = "11435"
+OLLAMA_API_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
 OLLAMA_DOWNLOAD_URL = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
 
 # Whether to use multiprocessing for OCR

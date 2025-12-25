@@ -61,11 +61,13 @@ class OllamaUI:
         self.download_status = None
         self.model_dropdown = None
         self.active_char_label = None
+        self.char_sync_label = None
         
         # Bind status callbacks
         self.status_manager.add_callback('ollama_status', self._on_ollama_status_change)
         self.status_manager.add_callback('active_model', self._on_active_model_change)
         self.status_manager.add_callback('active_character', self._on_active_character_change)
+        self.status_manager.add_callback('character_sync', self._on_character_sync_change)
     
     def format_bytes(self, b: int) -> str:
         """Format bytes to human readable format."""
@@ -156,6 +158,14 @@ class OllamaUI:
             text_color=UIStyles.PRIMARY_COLOR
         )
         self.active_char_label.pack(side='left', padx=(UIStyles.SPACE_SM, 0))
+
+        self.char_sync_label = ctk.CTkLabel(
+            char_info,
+            text="(Not Applied)",
+            font=UIStyles.FONT_SMALL,
+            text_color="#94a3b8" # Muted slate
+        )
+        self.char_sync_label.pack(side='left', padx=(UIStyles.SPACE_MD, 0))
 
         # Trigger initial status sync
         current_status = self.status_manager.get_ollama_status()
@@ -526,11 +536,6 @@ class OllamaUI:
     def _on_ollama_status_change(self, new_status: str, old_status: str):
         """Handle Ollama status changes."""
         # Update status text and colors
-        if hasattr(self, 'status_label') and self.status_label:
-            self.parent.after(0, lambda: self.status_label.configure(text=new_status))
-        if hasattr(self, 'ai_status_label') and self.ai_status_label:
-            self.parent.after(0, lambda: self.ai_status_label.configure(text=f"Status: {new_status}"))
-        
         # Update status indicator color
         color_map = {
             "Stopped": "#94a3b8", # Neutral grey-blue
@@ -543,11 +548,27 @@ class OllamaUI:
         }
         
         color = color_map.get(new_status, "#f59e0b")
-        if hasattr(self, 'status_indicator') and self.status_indicator:
-            self.parent.after(0, lambda: self.status_indicator.configure(text_color=color))
         
-        # Update button states
-        self.parent.after(0, lambda: self._update_button_states(new_status))
+        # Safely update UI using after()
+        def safe_update():
+            # Check if parent is still valid and has 'after'
+            if not hasattr(self.parent, 'after'):
+                return
+            try:
+                if hasattr(self, 'status_label') and self.status_label:
+                    self.status_label.configure(text=new_status)
+                if hasattr(self, 'ai_status_label') and self.ai_status_label:
+                    self.ai_status_label.configure(text=f"Status: {new_status}")
+                if hasattr(self, 'status_indicator') and self.status_indicator:
+                    self.status_indicator.configure(text_color=color)
+                self._update_button_states(new_status)
+            except Exception:
+                pass # UI may be closing or not in main loop yet
+
+        try:
+            self.parent.after(0, safe_update)
+        except Exception:
+            pass # Handle "main thread not in main loop" or similar init errors
         
         # Refresh model list if service just started running
         if new_status == "Running":
@@ -560,6 +581,25 @@ class OllamaUI:
     def _on_active_character_change(self, new_char: Optional[str], old_char: Optional[str]):
         """Handle active character profile changes."""
         self.parent.after(0, lambda: self._handle_active_character_ui_update(new_char))
+
+    def _on_character_sync_change(self, is_synced: bool, was_synced: bool):
+        """Handle character manifest sync status changes."""
+        self.parent.after(0, lambda: self._handle_character_sync_ui_update(is_synced))
+
+    def _handle_character_sync_ui_update(self, is_synced: bool):
+        active_model = self.status_manager.get_active_model()
+        if is_synced and active_model:
+            text = f"(Synced with {active_model})"
+            color = "#10b981" # Emerald
+        else:
+            text = "(Not Applied)"
+            color = "#94a3b8" # Slate
+        
+        if hasattr(self, 'char_sync_label') and self.char_sync_label:
+            self.char_sync_label.configure(text=text, text_color=color)
+        
+        if hasattr(self, 'setup_char_sync_label') and self.setup_char_sync_label:
+            self.setup_char_sync_label.configure(text=text, text_color=color)
 
     def _handle_active_character_ui_update(self, new_char):
         char_text = new_char if new_char else "None"

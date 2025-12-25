@@ -65,15 +65,15 @@ class FileManager:
     
     def get_ollama_path(self) -> Path:
         """Get path to Ollama executable."""
-        return Path(OLLAMA_EXE_PATH)
+        return Path(os.path.abspath(OLLAMA_EXE_PATH))
     
     def get_models_path(self) -> Path:
         """Get path to models directory."""
-        return Path(OLLAMA_MODELS_DIR)
+        return Path(os.path.abspath(OLLAMA_MODELS_DIR))
     
     def get_temp_path(self, filename: str) -> Path:
         """Get path to temporary file."""
-        return Path(OLLAMA_TEMP_DIR) / filename
+        return Path(os.path.abspath(os.path.join(OLLAMA_TEMP_DIR, filename)))
     
     def ollama_exists(self) -> bool:
         """Check if Ollama executable exists."""

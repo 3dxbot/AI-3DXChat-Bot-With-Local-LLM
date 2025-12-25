@@ -335,9 +335,16 @@ class BotSettingsMixin:
                     if self.show_overlay:
                         self._create_overlay()
                     
-                    # Load active character data if set
+                    # 1. Notify StatusManager about active model FIRST
+                    if self.active_model and hasattr(self.ui, 'status_manager'):
+                        self.ui.status_manager.set_active_model(self.active_model)
+
+                    # 2. Load and Notify active character data (sets sync to True)
                     if self.active_character_name:
                         self._load_active_character_data()
+                        if hasattr(self.ui, 'status_manager'):
+                            self.ui.status_manager.set_active_character(self.active_character_name)
+                            self.ui.status_manager.set_character_synced(True)
 
                     self.log("Settings loaded.", internal=True)
             else:
@@ -422,11 +429,17 @@ class BotSettingsMixin:
         char_file = os.path.join(CHARACTERS_DIR, f"{self.active_character_name}.json")
         if os.path.exists(char_file):
             try:
-                with open(char_file, "r", encoding="utf-8") as f:
+                with open(char_file, "r", encoding="utf-8-sig") as f:
                     data = json.load(f)
-                    self.global_prompt = data.get("global_prompt", getattr(self, "global_prompt", ""))
+                    # Prioritize character data
+                    self.global_prompt = data.get("global_prompt", "")
                     self.character_greeting = data.get("greeting", "")
                     self.character_manifest = data.get("manifest", "")
-                    self.log(f"Active character '{self.active_character_name}' data applied.", internal=True)
+                    
+                    # Log application
+                    self.log(f"Applied character profile: {self.active_character_name}", internal=True)
+                    self.log(f"- Greeting: {'Yes' if self.character_greeting else 'No'}", internal=True)
+                    self.log(f"- Manifest: {len(self.character_manifest)} chars", internal=True)
+                    self.log(f"- Global Prompt: {len(self.global_prompt)} chars", internal=True)
             except Exception as e:
                 self.log(f"Error loading active character data: {e}", internal=True)

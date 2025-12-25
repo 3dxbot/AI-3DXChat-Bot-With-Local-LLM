@@ -38,6 +38,7 @@ class StatusManager:
         self._ollama_status = "Checking"
         self._active_model = None
         self._active_character = None
+        self._is_character_synced = False
         self._model_status = {}
         
         # Callbacks
@@ -45,7 +46,8 @@ class StatusManager:
             'ollama_status': [],
             'model_status': [],
             'active_model': [],
-            'active_character': []
+            'active_character': [],
+            'character_sync': []
         }
         
         # Monitoring
@@ -86,6 +88,10 @@ class StatusManager:
         old_model = self._active_model
         self._active_model = model_name
         
+        # Reset sync status when model changes
+        if model_name != old_model:
+            self.set_character_synced(False)
+            
         self.logger.info(f"Active model changed: {old_model} -> {model_name}")
         
         # Notify callbacks
@@ -121,6 +127,27 @@ class StatusManager:
     def get_active_character(self) -> Optional[str]:
         """Get currently active character profile name."""
         return self._active_character
+
+    def set_character_synced(self, synced: bool):
+        """
+        Set if the active character is synced with the current model.
+        
+        Args:
+            synced: True if synced, False otherwise.
+        """
+        old_synced = self._is_character_synced
+        self._is_character_synced = synced
+        
+        # Notify callbacks
+        for callback in self._callbacks['character_sync']:
+            try:
+                callback(synced, old_synced)
+            except Exception as e:
+                self.logger.error(f"Error in character sync callback: {e}")
+
+    def is_character_synced(self) -> bool:
+        """Check if character is synced."""
+        return self._is_character_synced
     
     def set_model_status(self, model_name: str, status: str):
         """

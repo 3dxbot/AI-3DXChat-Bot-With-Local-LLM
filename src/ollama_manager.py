@@ -12,6 +12,7 @@ Classes:
 import os
 import subprocess
 import time
+import asyncio
 import requests
 import json
 from pathlib import Path
@@ -23,7 +24,7 @@ import zipfile
 from .file_manager import FileManager
 from .download_manager import DownloadManager
 from .status_manager import StatusManager
-from .config import OLLAMA_API_URL, OLLAMA_DOWNLOAD_URL
+from .config import OLLAMA_API_URL, OLLAMA_DOWNLOAD_URL, OLLAMA_HOST, OLLAMA_PORT
 
 
 class OllamaManager:
@@ -82,6 +83,11 @@ class OllamaManager:
             
             # Check if service is running
             if self.is_service_running():
+                # For diagnostic purposes: if we are on the isolated port but didn't open logs yet,
+                # we might want to suggest a restart or just log it.
+                if not hasattr(self, 'server_log_file') or not self.server_log_file:
+                    self.logger.info("Ollama is already running on port 11435. Diagnostic logs (ollama_server.log) will not be available until service is restarted via the UI.")
+                
                 self.status_manager.set_ollama_status("Running")
                 return True
             else:
@@ -186,23 +192,52 @@ class OllamaManager:
             time.sleep(2)  # Give system time to release ports
             
             # Start Ollama service
-            executable = str(self.ollama_path)
+            executable = os.path.abspath(str(self.ollama_path))
+            models_path = os.path.abspath(str(self.file_manager.get_models_path()))
             self.logger.info(f"Starting Ollama service: {executable}")
+            self.logger.info(f"Ollama Models Path: {models_path}")
             
             # Set environment variables for local operation
             env = os.environ.copy()
-            env["OLLAMA_MODELS"] = str(self.file_manager.get_models_path())
+            env["OLLAMA_MODELS"] = models_path
+            env["OLLAMA_HOST"] = f"{OLLAMA_HOST}:{OLLAMA_PORT}"
             
+            # Prepare log file for Ollama output
+            log_dir = os.path.dirname(executable)
+            self.server_log_path = os.path.join(log_dir, "ollama_server.log")
+            
+            # Close previous log file if already open
+            if hasattr(self, 'server_log_file') and self.server_log_file:
+                try:
+                    self.server_log_file.close()
+                except:
+                    pass
+
+            try:
+                self.server_log_file = open(self.server_log_path, "a", encoding="utf-8")
+                self.logger.info(f"Ollama server logs redirected to: {self.server_log_path}")
+            except Exception as e:
+                self.logger.error(f"Failed to open Ollama server log file: {e}")
+                self.server_log_file = None
+
             # Use subprocess.Popen to start it as a detached process on Windows
             if os.name == 'nt':
-                subprocess.Popen(
+                self.process = subprocess.Popen(
                     [executable, "serve"],
-                    creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+                    creationflags=subprocess.CREATE_NO_WINDOW,
+                    stdout=self.server_log_file,
+                    stderr=self.server_log_file,
                     close_fds=True,
                     env=env
                 )
             else:
-                subprocess.Popen([executable, "serve"], start_new_session=True, env=env)
+                self.process = subprocess.Popen(
+                    [executable, "serve"], 
+                    start_new_session=True, 
+                    stdout=self.server_log_file,
+                    stderr=self.server_log_file,
+                    env=env
+                )
             
             # Wait for service to be ready
             sanity_timeout = 600 # 10 minute sanity limit to prevent infinite loops
@@ -460,48 +495,79 @@ class OllamaManager:
         
         try:
             start_time = time.time()
-            self.logger.info(f"Generating async response from model '{model}'...")
-            self.logger.debug(f"Payload: {len(messages)} messages, total chars in last prompt: {len(prompt)}")
+            total_chars = sum(len(m.get('content', '')) for m in messages)
+            self.logger.info(f"LLM Request [Ready]: Model='{model}', Messages={len(messages)}, Total Chars={total_chars}")
+            
+            # Check if subprocess is still alive
+            if hasattr(self, 'process') and self.process:
+                poll = self.process.poll()
+                if poll is not None:
+                    self.logger.error(f"Ollama process died with exit code {poll}. Restarting...")
+                    self.start_service()
             
             # Run blocking request in a separate thread to keep the event loop responsive
-            import asyncio
             def make_request():
                 try:
                     url = f"{self.api_base_url}/api/chat"
-                    self.logger.debug(f"Requesting Ollama at {url}")
-                    return requests.post(
+                    self.logger.info(f"LLM Request [Sending]: {url} (Model: {model}, Payload: {total_chars} chars)")
+                    
+                    # Verify model exists before sending
+                    self.logger.debug(f"Verifying model '{model}' exists on server...")
+                    tags_response = requests.get(f"{self.api_base_url}/api/tags", timeout=10)
+                    if tags_response.status_code == 200:
+                        available_models = [m.get('name') for m in tags_response.json().get('models', [])]
+                        if model not in available_models:
+                            self.logger.error(f"Model '{model}' not found on server! Available: {available_models}")
+                            return None
+                    
+                    self.logger.info(f"LLM Request [Posting]: {model}...")
+                    req_start = time.time()
+                    response = requests.post(
                         url,
                         json={
                             "model": model,
                             "messages": messages,
                             "stream": False
                         },
-                        timeout=120 # Increased timeout for slower models/loading
+                        timeout=180 # Increased timeout for large models/first load
                     )
-                except requests.exceptions.RequestException as e:
-                    self.logger.error(f"Ollama API request failed: {e}")
+                    req_duration = time.time() - req_start
+                    self.logger.info(f"LLM Request [Received]: Status={response.status_code}, Duration={req_duration:.2f}s")
+                    return response
+                except requests.exceptions.Timeout:
+                    self.logger.error(f"LLM Request [Timeout]: Request exceeded 180s limit.")
+                    return None
+                except Exception as e:
+                    self.logger.error(f"LLM Request [Error]: {e}")
                     return None
 
             response_obj = await asyncio.to_thread(make_request)
             
             if response_obj is None:
+                self.logger.error("LLM Request [Failed]: No response object returned.")
                 return None
 
             duration = time.time() - start_time
-            self.logger.info(f"Ollama response received in {duration:.2f}s (Status: {response_obj.status_code})")
             
             if response_obj.status_code != 200:
-                self.logger.error(f"Ollama error {response_obj.status_code}: {response_obj.text}")
+                self.logger.error(f"LLM Request [Ollama Error] {response_obj.status_code}: {response_obj.text}")
                 return None
                 
             data = response_obj.json()
             response_text = data.get("message", {}).get("content", "")
             
             if response_text:
+                # Add BOTH user prompt and assistant response to history
+                self.chat_history.append({"role": "user", "content": prompt})
                 self.chat_history.append({"role": "assistant", "content": response_text})
-                # Keep history manageable
+                
+                # Keep history manageable (last 20 messages = 10 rounds)
                 if len(self.chat_history) > 20: 
                     self.chat_history = self.chat_history[-20:]
+                
+                self.logger.debug(f"Chat history updated. Current size: {len(self.chat_history)} messages")
+            else:
+                self.logger.warning("Ollama returned an empty response content")
             
             return response_text
         except Exception as e:

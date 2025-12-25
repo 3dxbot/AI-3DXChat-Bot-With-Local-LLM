@@ -14,12 +14,13 @@ from .ui_styles import UIStyles
 from .config import CHARACTERS_DIR
 
 class CharacterProfile:
-    def __init__(self, name="New Character", greeting="", global_prompt="", manifest="", memory_cards=None):
+    def __init__(self, name="New Character", greeting="", global_prompt="", manifest="", memory_cards=None, rag_enabled=True):
         self.name = name
         self.greeting = greeting
         self.global_prompt = global_prompt
         self.manifest = manifest
         self.memory_cards = memory_cards if memory_cards else []
+        self.rag_enabled = rag_enabled
 
     def to_dict(self):
         return {
@@ -27,7 +28,8 @@ class CharacterProfile:
             "greeting": self.greeting,
             "global_prompt": self.global_prompt,
             "manifest": self.manifest,
-            "memory_cards": self.memory_cards
+            "memory_cards": self.memory_cards,
+            "rag_enabled": self.rag_enabled
         }
 
     @classmethod
@@ -37,7 +39,8 @@ class CharacterProfile:
             greeting=data.get("greeting", ""),
             global_prompt=data.get("global_prompt", ""),
             manifest=data.get("manifest", ""),
-            memory_cards=data.get("memory_cards", [])
+            memory_cards=data.get("memory_cards", []),
+            rag_enabled=data.get("rag_enabled", True)
         )
 
 class UICharacterMixin:
@@ -238,7 +241,8 @@ class UICharacterMixin:
             data_text = ctk.CTkTextbox(card_ui, height=60, fg_color=UIStyles.APP_BG)
             data_text.pack(fill="x", padx=10, pady=(0, 10))
             data_text.insert("1.0", card.get("data", ""))
-            data_text.bind("<KeyRelease>", lambda e, idx=i, w=data_text: self._update_card_data(idx, "data", w.get("1.0", tk.END).strip()))
+            # Use *args to be robust against different callback signatures
+            data_text.bind("<KeyRelease>", lambda *args, idx=i, w=data_text: self._update_card_data(idx, "data", w.get("1.0", tk.END).strip()))
 
     def _update_card_data(self, idx, field, value):
         if self.current_character and idx < len(self.current_character.memory_cards):
@@ -336,23 +340,35 @@ class UICharacterMixin:
         self.active_character_name = self.current_character.name
         if hasattr(self.bot, 'active_character_name'):
             self.bot.active_character_name = self.active_character_name
+            
             # Apply data to bot
             self.bot.global_prompt = self.current_character.global_prompt
             self.bot.character_greeting = self.current_character.greeting
             self.bot.character_manifest = self.current_character.manifest
+            
+            # Log what is being applied for transparency
+            self.bot.log(f"Activating character: {self.active_character_name}", internal=True)
+            self.bot.log(f"Global Prompt: {len(self.bot.global_prompt)} chars applied", internal=True)
+            self.bot.log(f"Manifest: {len(self.bot.character_manifest)} chars applied", internal=True)
+            
+            # Save settings - will update active_character_name in chatbot_settings.json
             self.bot.save_settings()
             
             # Sync with StatusManager for UI-wide tracking
             if hasattr(self, 'status_manager'):
                 self.status_manager.set_active_character(self.active_character_name)
+                self.status_manager.set_character_synced(True)
 
-        # Update Chat UI if available
+        # Update Chat UI if available (Reset greeting sender)
+        if hasattr(self, 'bot'):
+            self.bot.first_message_sent = False
+
         if hasattr(self, '_display_character_greeting'):
             self._display_character_greeting()
 
         self._refresh_character_list()
         self._update_activate_btn_state()
-        messagebox.showinfo("Activated", f"Character '{self.active_character_name}' is now active.")
+        messagebox.showinfo("Activated", f"Character '{self.active_character_name}' is now active.\nSettings applied to LLM context.")
 
     def _update_activate_btn_state(self):
         if self.current_character and self.current_character.name == self.active_character_name:
@@ -369,7 +385,7 @@ class UICharacterMixin:
         for filename in os.listdir(CHARACTERS_DIR):
             if filename.endswith(".json"):
                 try:
-                    with open(os.path.join(CHARACTERS_DIR, filename), "r", encoding="utf-8") as f:
+                    with open(os.path.join(CHARACTERS_DIR, filename), "r", encoding="utf-8-sig") as f:
                         data = json.load(f)
                         char = CharacterProfile.from_dict(data)
                         self.characters[char.name] = char
@@ -385,7 +401,7 @@ class UICharacterMixin:
         file_path = filedialog.askopenfilename(filetypes=[("JSON files", "*.json")])
         if file_path:
             try:
-                with open(file_path, "r", encoding="utf-8") as f:
+                with open(file_path, "r", encoding="utf-8-sig") as f:
                     data = json.load(f)
                     char = CharacterProfile.from_dict(data)
                     
