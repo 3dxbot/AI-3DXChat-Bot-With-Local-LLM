@@ -322,7 +322,7 @@ class UIInitMixin:
         self.language_dropdown = ctk.CTkOptionMenu(
             settings_card, 
             values=language_options, 
-            variable=self.hiwaifu_language_var, 
+            variable=self.ocr_language_var,
             command=self.on_language_selected,
             fg_color=UIStyles.SECONDARY_COLOR,
             button_color=UIStyles.PRIMARY_COLOR,
@@ -526,10 +526,10 @@ class UIInitMixin:
         
         hotkeys_text = """F2: Pause/Resume chat scanning
 F3: Show/Hide window
-F4: Clear chat history in HiWaifu
+F4: Clear chat history
 F5-F12: Send preset phrases (configured in Prompts)
 
-Ctrl+E: Change HiWaifu language to English
+Ctrl+E: Change language to English
 Ctrl+R: Change language to Russian
 Ctrl+F: Change language to French
 Ctrl+S: Change language to Spanish"""

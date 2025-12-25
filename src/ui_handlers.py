@@ -26,7 +26,7 @@ class UIHandlersMixin:
         on_pause_click: Handle pause/resume button click.
         on_stop_click: Handle stop button click.
         update_buttons_state: Update button states based on bot status.
-        on_set_hiwaifu_language: Handle HiWaifu language change.
+        on_set_ocr_language: Handle OCR language change.
         on_clear_chat_click: Handle clear chat button click.
         on_close_partnership_click: Handle close partnership button click.
         on_change_language_click: Handle language change.
@@ -114,13 +114,13 @@ class UIHandlersMixin:
         else:
             self.pause_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, text="Start Scan")
 
-    def on_set_hiwaifu_language(self):
+    def on_set_ocr_language(self):
         """
-        Handle HiWaifu language change.
+        Handle OCR language change.
 
         Gets the selected language from the UI variable and triggers language change.
         """
-        language = self.hiwaifu_language_var.get()
+        language = self.ocr_language_var.get()
         self.on_change_language_click(language)
 
     def on_clear_chat_click(self):
@@ -171,7 +171,7 @@ class UIHandlersMixin:
         try:
             if self.bot:
                 self.bot.change_language(language)
-                self.hiwaifu_language_var.set(language)
+                self.ocr_language_var.set(language)
         finally:
             self._unlock(key)
 
@@ -273,7 +273,7 @@ class UIHandlersMixin:
         """
         if self.bot:
             self.bot.change_language(language)
-            self.hiwaifu_language_var.set(language)
+            self.ocr_language_var.set(language)
             
     def update_switch_colors(self):
         """

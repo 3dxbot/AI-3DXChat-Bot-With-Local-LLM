@@ -5,7 +5,7 @@ This module initializes and starts the chatbot GUI application. It handles
 application path detection for both development and PyInstaller builds,
 sets up logging, and launches the main UI window.
 
-Author: [Anonymicus]
+Author: [3DXChatBot]
 Version: 1.0.0
 Date: [14.12.2025]
 """

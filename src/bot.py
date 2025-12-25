@@ -534,8 +534,8 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                 self.pending_new_language = None
                 
                 # Update UI Var
-                if hasattr(self.ui, 'hiwaifu_language_var'):
-                    self.ui.hiwaifu_language_var.set(detected_lang)
+                if hasattr(self.ui, 'ocr_language_var'):
+                    self.ui.ocr_language_var.set(detected_lang)
                 if hasattr(self.ui, 'language_dropdown'):
                     self.ui.root.after(0, lambda lang=detected_lang: self.ui.language_dropdown.set(lang))
                 
@@ -801,7 +801,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                             await asyncio.sleep(0.5)  # Give time for saving to complete
                             self.log(f"Pose named and accepted (already clicked): {pose_name}", internal=True)
                             
-                            # Notify HiWaifu about the new pose and wait for response
+                            # Notify AI about the new pose and wait for response
                             notification_msg = f"{self.get_pose_message()} {pose_name}"
                             self.log(f"Notifying LLM about the new pose: {notification_msg}", internal=True)
                             
@@ -951,10 +951,10 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                     self.hooker_timer_end = current_time + (extra_mins * 60)
 
                     # Send success message to LLM for processing
-                    if self.hooker_hiwaifu_message:
-                        self.log(f"Sending payment confirmation to LLM: {self.hooker_hiwaifu_message}", internal=True)
+                    if self.hooker_success_message:
+                        self.log(f"Sending payment confirmation to LLM: {self.hooker_success_message}", internal=True)
                         response = await self.ui.ollama_manager.generate_response(
-                            self.hooker_hiwaifu_message,
+                            self.hooker_success_message,
                             system_prompt=self.global_prompt,
                             manifest=self.character_manifest
                         )

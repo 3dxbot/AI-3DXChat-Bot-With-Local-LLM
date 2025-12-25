@@ -354,7 +354,7 @@ class PoseActionsMixin:
                             await self.send_to_game([message])
                             # Don't click accept yet
                         else:
-                            self.log(f"Known pose {pose_name}, sending to hiwaifu", internal=True)
+                            self.log(f"Known pose {pose_name}, sending to AI", internal=True)
                             message = f"{self.get_pose_message()} {pose_name}"
                             self.initiate_chat_from_text(message)
 

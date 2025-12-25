@@ -54,7 +54,7 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         is_processing: Dictionary for tracking processing states.
         autonomous_var: Boolean variable for autonomous mode.
         auto_lang_var: Boolean variable for auto language switching.
-        hiwaifu_language_var: String variable for HiWaifu language.
+        ocr_language_var: String variable for OCR language.
         manual_input_var: String variable for manual input field.
 
     Methods:
@@ -83,7 +83,7 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         self.is_processing = {}
         self.global_prompt_var = None
         self.autonomous_var = ctk.BooleanVar(value=False)
-        self.hiwaifu_language_var = tk.StringVar(value="en")
+        self.ocr_language_var = tk.StringVar(value="en")
         self.use_translation_var = ctk.BooleanVar(value=False)
         self.hooker_enabled_var = ctk.BooleanVar(value=False)
         self.show_zones_var = ctk.BooleanVar(value=False)
@@ -172,7 +172,7 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
             if current_layout != english_layout:
                 message = (
                     "Warning: Current keyboard layout is not English.\n\n"
-                    "Text insertion into HiWaifu may not work correctly with non-English layout.\n"
+                    "Text insertion may not work correctly with non-English layout.\n"
                     "It is recommended to switch to English (EN) layout for proper bot operation.\n\n"
                     "You can continue, but text insertion functionality may be limited."
                 )

@@ -177,8 +177,8 @@ class UIWindowsMixin:
 
         # Success message
         ctk.CTkLabel(messages_inner, text="Success Message (AI):", font=UIStyles.FONT_SMALL, text_color=UIStyles.TEXT_SECONDARY).pack(anchor='w', pady=(0, UIStyles.SPACE_XS))
-        self.hooker_hiwaifu_msg_var = tk.StringVar(value=getattr(self.bot, 'hooker_hiwaifu_message', ""))
-        UIStyles.create_input_field(messages_inner, textvariable=self.hooker_hiwaifu_msg_var).pack(fill='x')
+        self.hooker_success_msg_var = tk.StringVar(value=getattr(self.bot, 'hooker_success_message', ""))
+        UIStyles.create_input_field(messages_inner, textvariable=self.hooker_success_msg_var).pack(fill='x')
 
         # Save button
         save_frame = ctk.CTkFrame(self.hooker_mod_frame, fg_color="transparent")
@@ -296,7 +296,7 @@ class UIWindowsMixin:
                 hooker_coins = int(self.hooker_coins_var.get().strip() or 0)
                 hooker_wait = int(self.hooker_wait_time_var.get().strip() or 60)
                 hooker_warn = self.hooker_warn_var.get().strip()
-                hooker_hiwaifu = self.hooker_hiwaifu_msg_var.get().strip()
+                hooker_success = self.hooker_success_msg_var.get().strip()
             else:
                 # If hooker mod variables don't exist, use current bot values or defaults
                 hooker_free = getattr(self.bot, 'hooker_free_mins', 0)
@@ -304,14 +304,14 @@ class UIWindowsMixin:
                 hooker_coins = getattr(self.bot, 'hooker_coins_per_paid', 0)
                 hooker_wait = getattr(self.bot, 'hooker_payment_wait_time', 60)
                 hooker_warn = getattr(self.bot, 'hooker_warning_message', "")
-                hooker_hiwaifu = getattr(self.bot, 'hooker_hiwaifu_message', "")
+                hooker_success = getattr(self.bot, 'hooker_success_message', "")
         except (ValueError, AttributeError):
             hooker_free = 0
             hooker_paid = 0
             hooker_coins = 0
             hooker_wait = 60
             hooker_warn = ""
-            hooker_hiwaifu = ""
+            hooker_success = ""
 
         try:
             self.bot.save_hotkeys_and_prompt(
@@ -323,7 +323,7 @@ class UIWindowsMixin:
                 hooker_paid=hooker_paid,
                 hooker_coins=hooker_coins,
                 hooker_warn=hooker_warn,
-                hooker_hiwaifu=hooker_hiwaifu,
+                hooker_success=hooker_success,
                 hooker_wait=hooker_wait
             )
         except Exception as e:
@@ -344,7 +344,7 @@ class UIWindowsMixin:
                 hooker_coins = int(self.hooker_coins_var.get().strip() or 0)
                 hooker_wait = int(self.hooker_wait_time_var.get().strip() or 60)
                 hooker_warn = self.hooker_warn_var.get().strip()
-                hooker_hiwaifu = self.hooker_hiwaifu_msg_var.get().strip()
+                hooker_success = self.hooker_success_msg_var.get().strip()
             else:
                 # If hooker mod variables don't exist, use current bot values or defaults
                 hooker_free = getattr(self.bot, 'hooker_free_mins', 0)
@@ -352,7 +352,7 @@ class UIWindowsMixin:
                 hooker_coins = getattr(self.bot, 'hooker_coins_per_paid', 0)
                 hooker_wait = getattr(self.bot, 'hooker_payment_wait_time', 60)
                 hooker_warn = getattr(self.bot, 'hooker_warning_message', "")
-                hooker_hiwaifu = getattr(self.bot, 'hooker_hiwaifu_message', "")
+                hooker_success = getattr(self.bot, 'hooker_success_message', "")
         except (ValueError, AttributeError):
             self.log_message("Invalid numeric values in Hooker Mod settings.", internal=True)
             return
@@ -365,7 +365,7 @@ class UIWindowsMixin:
                 hooker_paid=hooker_paid,
                 hooker_coins=hooker_coins,
                 hooker_warn=hooker_warn,
-                hooker_hiwaifu=hooker_hiwaifu,
+                hooker_success=hooker_success,
                 hooker_wait=hooker_wait
             )
             self.log_message("Hooker Mod settings saved.", internal=True)

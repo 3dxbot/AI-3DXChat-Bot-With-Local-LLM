@@ -333,7 +333,7 @@ class PartnershipActionsMixin:
                 self.current_language = 'en'
                 # Update UI dropdown - use lowercase to match language_options
                 self.ui.root.after(0, lambda: self.ui.language_dropdown.set('en'))
-                self.ui.hiwaifu_language_var.set('en')
+                self.ui.ocr_language_var.set('en')
                 self.log("Language set to English (default) in game UI.", internal=True)
                 
                 # Local language reset. No browser change needed.

@@ -1,6 +1,6 @@
 # ChatBot-Assistant
 
-**ChatBot-Assistant** is a desktop Python application for automating chat interactions in games. It uses computer vision (OCR with pytesseract), browser automation (Playwright), and input control tools (pyautogui) to scan chat, recognize messages, and generate responses through an external service (e.g., HiWaifu).
+**ChatBot-Assistant** is a desktop Python application for automating chat interactions in games. It uses computer vision (OCR with pytesseract), browser automation (Playwright), and input control tools (pyautogui) to scan chat, recognize messages, and generate responses through an external service (e.g., AI).
 
 The project is optimized for maximum stability, speed, and fault tolerance: asynchronous code based on asyncio, detailed error handling, state synchronization, and efficient resource usage.
 
@@ -8,7 +8,7 @@ The project is optimized for maximum stability, speed, and fault tolerance: asyn
 
 - **Automatic Chat Scanning**: The bot continuously monitors a specified screen area, recognizes text using OCR, and analyzes new messages.
 - **Nickname Management**: Support for lists of ignored and tracked nicks with fuzzy matching for reliable recognition.
-- **Response Generation**: Browser integration for sending requests to an external service (HiWaifu) and receiving responses that are then sent to the game.
+- **Response Generation**: Browser integration for sending requests to an external service (AI) and receiving responses that are then sent to the game.
 - **Flexible Responses**: Automatic message processing with action conversion to commands (/me) and sending to the game.
 - **Pose Recognition**: Automatic detection and acceptance of pose changes, with user-assisted naming for unknown poses.
 - **Intuitive GUI**: Simple Tkinter interface for managing the bot, nick lists, and logs.
@@ -81,7 +81,7 @@ The bot includes advanced pose recognition and management:
 
 On first launch, the bot is in pause mode for setup:
 
-1. **Browser Authorization**: Open browser, log into HiWaifu (or similar service) account.
+1. **Browser Authorization**: Open browser, log into AI service account.
 2. **Area Setup**:
    - Click "Setup Areas" in UI or use F2 for step-by-step setup:
      - Step 1: Hover over top-left chat corner → F2.
@@ -96,7 +96,7 @@ On first launch, the bot is in pause mode for setup:
 - `main.py`: Entry point, launches UI.
 - `src/ui_*.py`: Graphical interface on Tkinter/CustomTkinter.
 - `src/bot.py`: Main bot logic (scanning, processing, sending).
-- `src/browser.py`: Browser management via Playwright (HiWaifu integration).
+- `src/browser.py`: Browser management via Playwright (AI integration).
 - `src/chat_processor.py`: Chat processing (nick recognition, fuzzy matching, message formatting).
 - `src/utils.py`: Utilities for OCR and text normalization.
 - `src/config.py`: Constants (URLs, selectors, paths).

@@ -44,7 +44,7 @@ class BotSettingsMixin:
         hooker_paid_mins (int): Number of paid minutes.
         hooker_coins_per_paid (int): Number of coins for paid time.
         hooker_warning_message (str): Message when time is ending.
-        hooker_hiwaifu_message (str): Successful payment message for AI.
+        hooker_success_message (str): Successful payment message for AI.
         hooker_payment_wait_time (int): Seconds to wait for payment.
         active_character_name (str): Name of the currently active character profile.
 
@@ -95,11 +95,11 @@ class BotSettingsMixin:
                     self.hooker_paid_mins = settings.get("hooker_paid_mins", 0)
                     self.hooker_coins_per_paid = settings.get("hooker_coins_per_paid", 0)
                     self.hooker_warning_message = settings.get("hooker_warning_message", "")
-                    self.hooker_hiwaifu_message = settings.get("hooker_hiwaifu_message", "")
+                    self.hooker_success_message = settings.get("hooker_success_message", "")
                     self.hooker_payment_wait_time = settings.get("hooker_payment_wait_time", 60)
                     self.use_translation_layer = settings.get("use_translation_layer", False)
                     if not self.hotkey_phrases and isinstance(settings, dict):
-                        self.hotkey_phrases = {k: v for k, v in settings.items() if k not in ['global_prompt', 'partnership_message', 'pose_message', 'pose_message_ru', 'gift_message', 'unknown_pose_message', 'unknown_pose_message_ru', 'hooker_mod_enabled', 'hooker_free_mins', 'hooker_paid_mins', 'hooker_coins_per_paid', 'hooker_warning_message', 'hooker_hiwaifu_message', 'hooker_payment_wait_time']}
+                        self.hotkey_phrases = {k: v for k, v in settings.items() if k not in ['global_prompt', 'partnership_message', 'pose_message', 'pose_message_ru', 'gift_message', 'unknown_pose_message', 'unknown_pose_message_ru', 'hooker_mod_enabled', 'hooker_free_mins', 'hooker_paid_mins', 'hooker_coins_per_paid', 'hooker_warning_message', 'hooker_success_message', 'hooker_payment_wait_time']}
                     self.log("Hotkey settings and prompt loaded.", internal=True)
             else:
                 self.log("Hotkey settings file not found. Creating empty.", internal=True)
@@ -114,7 +114,7 @@ class BotSettingsMixin:
                 self.hooker_paid_mins = 0
                 self.hooker_coins_per_paid = 0
                 self.hooker_warning_message = ""
-                self.hooker_hiwaifu_message = ""
+                self.hooker_success_message = ""
                 self.hooker_payment_wait_time = 60
         except Exception as e:
             self.log(f"Error loading phrases/prompt: {e}", internal=True)
@@ -131,7 +131,7 @@ class BotSettingsMixin:
             self.hooker_paid_mins = 0
             self.hooker_coins_per_paid = 0
             self.hooker_warning_message = ""
-            self.hooker_hiwaifu_message = ""
+            self.hooker_success_message = ""
             self.hooker_payment_wait_time = 60
             self.use_translation_layer = False
 
@@ -160,7 +160,7 @@ class BotSettingsMixin:
                 "hooker_paid_mins": self.hooker_paid_mins,
                 "hooker_coins_per_paid": self.hooker_coins_per_paid,
                 "hooker_warning_message": self.hooker_warning_message,
-                "hooker_hiwaifu_message": self.hooker_hiwaifu_message,
+                "hooker_success_message": self.hooker_success_message,
                 "hooker_payment_wait_time": self.hooker_payment_wait_time,
                 "use_translation_layer": self.use_translation_layer
             }
@@ -172,7 +172,7 @@ class BotSettingsMixin:
             self.log(f"Error saving phrases: {e}", internal=True)
 
     def save_hotkeys_and_prompt(self, new_phrases, new_prompt, new_partnership_message=None, new_pose_message=None, new_pose_message_ru=None, new_gift_message=None, new_unknown_pose_message=None, new_unknown_pose_message_ru=None,
-                                hooker_enabled=None, hooker_free=None, hooker_paid=None, hooker_coins=None, hooker_warn=None, hooker_hiwaifu=None, hooker_wait=None):
+                                hooker_enabled=None, hooker_free=None, hooker_paid=None, hooker_coins=None, hooker_warn=None, hooker_success=None, hooker_wait=None):
         """
         Public method to update and save prompt and phrases.
 
@@ -211,8 +211,8 @@ class BotSettingsMixin:
             self.hooker_coins_per_paid = hooker_coins
         if hooker_warn is not None:
             self.hooker_warning_message = hooker_warn
-        if hooker_hiwaifu is not None:
-            self.hooker_hiwaifu_message = hooker_hiwaifu
+        if hooker_success is not None:
+            self.hooker_success_message = hooker_success
         if hooker_wait is not None:
             self.hooker_payment_wait_time = hooker_wait
         self._save_hotkey_settings()

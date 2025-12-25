@@ -33,7 +33,7 @@ class SettingsMixin:
         self.bot.load_settings()
 
         self.autonomous_var.set(self.bot.autonomous_mode)
-        self.hiwaifu_language_var.set(self.bot.ocr_language)
+        self.ocr_language_var.set(self.bot.ocr_language)
         self.use_translation_var.set(getattr(self.bot, 'use_translation_layer', False))
         
         # Sync active model to StatusManager
@@ -65,7 +65,7 @@ class SettingsMixin:
         try:
             # Convert back to lowercase for internal use
             lang_code = selected_value.lower()
-            self.hiwaifu_language_var.set(lang_code)
-            self.on_set_hiwaifu_language()
+            self.ocr_language_var.set(lang_code)
+            self.on_set_ocr_language()
         except Exception as e:
             self.log_message(f"Error setting language: {e}", internal=True)
