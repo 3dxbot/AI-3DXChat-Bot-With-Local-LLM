@@ -599,27 +599,40 @@ class OllamaManager:
     def delete_model(self, model_name: str) -> bool:
         """
         Delete a model.
-        
+
         Args:
             model_name: Name of the model to delete.
-            
+
         Returns:
             bool: True if deletion successful, False otherwise.
         """
         try:
+            # First check if model exists in Ollama
+            models = self.list_models()
+            model_names = [m.get('name') for m in models]
+
+            if model_name not in model_names:
+                self.logger.warning(f"Model '{model_name}' not found in Ollama, removing from status tracking only")
+                # Remove from status tracking even if not in Ollama
+                self.status_manager.remove_model(model_name)
+                return True
+
+            # Model exists, try to delete it
             response = requests.delete(f"{self.api_base_url}/api/delete", json={"name": model_name})
             if response.status_code == 200:
                 self.status_manager.remove_model(model_name)
-                
+
                 # Clean up the model's folder
                 from .config import get_model_folder_path
                 model_folder = get_model_folder_path(model_name)
                 if model_folder.exists():
                     shutil.rmtree(model_folder)
                     self.logger.info(f"Cleaned up model folder for {model_name}")
-                
+
                 return True
-            return False
+            else:
+                self.logger.error(f"Failed to delete model {model_name}: HTTP {response.status_code}")
+                return False
         except Exception as e:
             self.logger.error(f"Error deleting model {model_name}: {e}")
             return False
@@ -768,14 +781,88 @@ class OllamaManager:
     def get_model_download_progress(self, model_name: str) -> Dict[str, Any]:
         """
         Get download progress information for a model.
-        
+
         Args:
             model_name: Name of the model.
-            
+
         Returns:
             Dictionary with progress information.
         """
         return self.model_download_manager.get_download_progress(model_name)
+
+    def get_gpu_info(self) -> Dict[str, Any]:
+        """
+        Get GPU information from Ollama server logs.
+
+        Returns:
+            Dictionary with GPU information.
+        """
+        try:
+            log_path = os.path.join(os.path.dirname(self.ollama_path), "ollama_server.log")
+            if not os.path.exists(log_path):
+                return {"gpu_detected": False, "message": "Log file not found"}
+
+            gpu_info = {
+                "gpu_detected": False,
+                "gpu_name": None,
+                "gpu_memory_total": None,
+                "gpu_memory_available": None,
+                "gpu_library": None,
+                "gpu_compute": None,
+                "message": "GPU information not found in logs"
+            }
+
+            with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()[-1000:]  # Read last 1000 lines for efficiency
+
+            for line in reversed(lines):  # Start from most recent
+                if "inference compute" in line and "library=CUDA" in line:
+                    # Parse GPU info from log line
+                    gpu_info["gpu_detected"] = True
+                    gpu_info["message"] = "GPU detected and in use"
+
+                    # Extract GPU name
+                    if "description=" in line:
+                        desc_start = line.find('description="') + len('description="')
+                        desc_end = line.find('"', desc_start)
+                        if desc_end > desc_start:
+                            gpu_info["gpu_name"] = line[desc_start:desc_end]
+
+                    # Extract memory info
+                    if "total=" in line:
+                        total_start = line.find('total="') + len('total="')
+                        total_end = line.find('"', total_start)
+                        if total_end > total_start:
+                            gpu_info["gpu_memory_total"] = line[total_start:total_end]
+
+                    if "available=" in line:
+                        avail_start = line.find('available="') + len('available="')
+                        avail_end = line.find('"', avail_start)
+                        if avail_end > avail_start:
+                            gpu_info["gpu_memory_available"] = line[avail_start:avail_end]
+
+                    # Extract library and compute
+                    if "library=" in line:
+                        lib_start = line.find('library=') + len('library=')
+                        lib_end = line.find(' ', lib_start)
+                        if lib_end == -1:
+                            lib_end = len(line)
+                        gpu_info["gpu_library"] = line[lib_start:lib_end]
+
+                    if "compute=" in line:
+                        comp_start = line.find('compute=') + len('compute=')
+                        comp_end = line.find(' ', comp_start)
+                        if comp_end == -1:
+                            comp_end = len(line)
+                        gpu_info["gpu_compute"] = line[comp_start:comp_end]
+
+                    break  # Found the most recent GPU info
+
+            return gpu_info
+
+        except Exception as e:
+            self.logger.error(f"Error reading GPU info from logs: {e}")
+            return {"gpu_detected": False, "message": f"Error reading logs: {e}"}
     
     def clear_history(self):
         """Clear the current conversation context history."""

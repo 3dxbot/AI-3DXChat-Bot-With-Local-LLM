@@ -13,6 +13,7 @@ import customtkinter as ctk
 from typing import Optional, Callable
 import threading
 import time
+import logging
 
 from .ollama_manager import OllamaManager
 from .status_manager import StatusManager
@@ -39,7 +40,7 @@ class OllamaUI:
                  file_manager: FileManager, download_manager: DownloadManager):
         """
         Initialize OllamaUI.
-        
+
         Args:
             parent: Parent widget.
             ollama_manager: OllamaManager instance.
@@ -52,6 +53,7 @@ class OllamaUI:
         self.status_manager = status_manager
         self.file_manager = file_manager
         self.download_manager = download_manager
+        self.logger = logging.getLogger(__name__)
         
         # Enhanced download progress tracking
         self.model_progress_details = None
@@ -66,6 +68,7 @@ class OllamaUI:
         self.model_dropdown = None
         self.active_char_label = None
         self.char_sync_label = None
+        self.gpu_info_label = None
         
         # Bind status callbacks
         self.status_manager.add_callback('ollama_status', self._on_ollama_status_change)
@@ -171,15 +174,38 @@ class OllamaUI:
         )
         self.char_sync_label.pack(side='left', padx=(UIStyles.SPACE_MD, 0))
 
+        # GPU information
+        gpu_info = ctk.CTkFrame(ollama_zone, fg_color="transparent")
+        gpu_info.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+
+        gpu_text = ctk.CTkLabel(
+            gpu_info,
+            text="GPU Status:",
+            font=UIStyles.FONT_NORMAL,
+            text_color=UIStyles.TEXT_TERTIARY
+        )
+        gpu_text.pack(side='left')
+
+        self.gpu_info_label = ctk.CTkLabel(
+            gpu_info,
+            text="Checking...",
+            font=UIStyles.FONT_NORMAL,
+            text_color=UIStyles.TEXT_SECONDARY
+        )
+        self.gpu_info_label.pack(side='left', padx=(UIStyles.SPACE_SM, 0))
+
         # Trigger initial status sync
         current_status = self.status_manager.get_ollama_status()
         self._on_ollama_status_change(current_status, "")
-        
+
         # Initial character sync
         current_char = self.status_manager.get_active_character()
         if current_char:
             self._on_active_character_change(current_char, None)
-        
+
+        # Initial GPU info update
+        self._update_gpu_info()
+
         return ollama_zone
     
     def create_ai_setup_zones(self, parent):
@@ -586,6 +612,8 @@ class OllamaUI:
         # Refresh model list if service just started running
         if new_status == "Running":
             self.parent.after(500, self._refresh_model_list)
+            # Update GPU info when Ollama starts
+            self.parent.after(1000, self._update_gpu_info)
     
     def _on_active_model_change(self, new_model: Optional[str], old_model: Optional[str]):
         """Handle active model changes."""
@@ -742,19 +770,22 @@ class OllamaUI:
         """Update model dropdown items safely."""
         if hasattr(self, 'model_dropdown') and self.model_dropdown:
             self.model_dropdown.configure(values=model_names)
-            
+
             # If current selection is not in list, set to first or empty
             current = self.model_dropdown.get()
-            if current not in model_names:
+            if current not in model_names and current != "empty":
                 new_val = model_names[0] if model_names else "empty"
                 self.model_dropdown.set(new_val)
                 self._on_model_select(new_val)
-            
-            # Auto-select active model if sync needed
+
+            # Auto-select active model if it exists in the list
             active = self.status_manager.get_active_model()
             if active and active in model_names:
                 self.model_dropdown.set(active)
                 self._on_model_select(active)
+            elif active and active not in model_names and active != current:
+                # If active model doesn't exist, clear it
+                self.status_manager.set_active_model(None)
     
     # Button click handlers
     def _on_service_toggle_click(self):
@@ -933,3 +964,27 @@ class OllamaUI:
                             self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to delete model '{model_name}'."))
                     
                     threading.Thread(target=delete_task, daemon=True).start()
+
+    def _update_gpu_info(self):
+        """Update GPU information display."""
+        try:
+            gpu_info = self.ollama_manager.get_gpu_info()
+
+            if gpu_info.get("gpu_detected", False):
+                gpu_name = gpu_info.get("gpu_name", "Unknown GPU")
+                gpu_memory = gpu_info.get("gpu_memory_total", "Unknown")
+                text = f"GPU: {gpu_name} ({gpu_memory})"
+                color = UIStyles.SUCCESS_COLOR  # Green for detected GPU
+            else:
+                text = gpu_info.get("message", "GPU not detected")
+                color = UIStyles.TEXT_TERTIARY  # Muted color for no GPU
+
+            self._update_gpu_label(text, color)
+        except Exception as e:
+            self.logger.error(f"Error updating GPU info: {e}")
+            self._update_gpu_label("Error reading GPU info", UIStyles.ERROR_COLOR)
+
+    def _update_gpu_label(self, text: str, color: str):
+        """Update GPU label safely."""
+        if hasattr(self, 'gpu_info_label') and self.gpu_info_label:
+            self.gpu_info_label.configure(text=text, text_color=color)
