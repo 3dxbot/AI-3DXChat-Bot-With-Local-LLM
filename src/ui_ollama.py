@@ -8,6 +8,7 @@ Classes:
 """
 
 import tkinter as tk
+from tkinter import messagebox
 import customtkinter as ctk
 from typing import Optional, Callable
 import threading
@@ -63,6 +64,17 @@ class OllamaUI:
         # Bind status callbacks
         self.status_manager.add_callback('ollama_status', self._on_ollama_status_change)
         self.status_manager.add_callback('active_model', self._on_active_model_change)
+    
+    def format_bytes(self, b: int) -> str:
+        """Format bytes to human readable format."""
+        if b < 1024:
+            return f"{b} B"
+        elif b < 1024 * 1024:
+            return f"{b / 1024:.1f} KB"
+        elif b < 1024 * 1024 * 1024:
+            return f"{b / (1024 * 1024):.1f} MB"
+        else:
+            return f"{b / (1024 * 1024 * 1024):.1f} GB"
     
     def create_dashboard_zone(self, parent):
         """Create Ollama status zone for Dashboard - compact version without control buttons."""
@@ -123,6 +135,10 @@ class OllamaUI:
         )
         self.active_model_label.pack(side='left', padx=(UIStyles.SPACE_SM, 0))
         
+        # Trigger initial status sync
+        current_status = self.status_manager.get_ollama_status()
+        self._on_ollama_status_change(current_status, "")
+        
         return ollama_zone
     
     def create_ai_setup_zones(self, parent):
@@ -180,59 +196,48 @@ class OllamaUI:
         row1 = ctk.CTkFrame(action_frame, fg_color="transparent")
         row1.pack(fill='x', pady=(0, UIStyles.SPACE_MD))
         
-        self.ai_download_btn = UIStyles.create_button(
+        # Combined Action Button (Download/Delete)
+        self.ai_action_btn = UIStyles.create_button(
             row1,
             text="Download Ollama",
-            command=self._on_download_click,
+            command=self._on_action_click,
             width=160,
             height=40
         )
-        self.ai_download_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
+        self.ai_action_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
         
-        self.ai_start_btn = UIStyles.create_button(
+        # Combined Service Button (Start/Stop)
+        self.ai_service_btn = UIStyles.create_button(
             row1,
             text="Start Service",
-            command=self._on_start_click,
+            command=self._on_service_toggle_click,
             state="disabled",
             width=160,
             height=40
         )
-        self.ai_start_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
+        self.ai_service_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
         
-        # Row 2
-        row2 = ctk.CTkFrame(action_frame, fg_color="transparent")
-        row2.pack(fill='x')
+        # Removed redundant Row 2 buttons, consolidated into Row 1
+        # Progress Section (Hidden by default)
+        self.ollama_progress_frame = ctk.CTkFrame(zone, fg_color="transparent")
+        self.ollama_progress_frame.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+        self.ollama_progress_frame.pack_forget() # Hide initially
+
+        progress_header = ctk.CTkFrame(self.ollama_progress_frame, fg_color="transparent")
+        progress_header.pack(fill='x', pady=(0, 5))
         
-        self.ai_stop_btn = UIStyles.create_secondary_button(
-            row2,
-            text="Stop Service",
-            command=self._on_stop_click,
-            state="disabled",
-            width=160,
-            height=40
-        )
-        self.ai_stop_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
-        
-        self.ai_restart_btn = UIStyles.create_secondary_button(
-            row2,
-            text="Restart Service",
-            command=self._on_restart_click,
-            state="disabled",
-            width=160,
-            height=40
-        )
-        self.ai_restart_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
-        
-        self.ai_delete_btn = UIStyles.create_secondary_button(
-            row2,
-            text="Delete Ollama",
-            command=self._on_delete_click,
-            state="disabled",
-            width=160,
-            height=40
-        )
-        self.ai_delete_btn.pack(side='left')
-        
+        ctk.CTkLabel(progress_header, text="Downloading Ollama...", font=UIStyles.FONT_NORMAL, text_color=UIStyles.TEXT_SECONDARY).pack(side='left')
+        self.ollama_progress_label = ctk.CTkLabel(progress_header, text="0%", font=UIStyles.FONT_NORMAL, text_color=UIStyles.TEXT_PRIMARY)
+        self.ollama_progress_label.pack(side='right')
+
+        self.ollama_progress_bar = ctk.CTkProgressBar(self.ollama_progress_frame, height=10, progress_color=UIStyles.PRIMARY_COLOR)
+        self.ollama_progress_bar.pack(fill='x')
+        self.ollama_progress_bar.set(0)
+
+        # Trigger initial status sync
+        current_status = self.status_manager.get_ollama_status()
+        self._on_ollama_status_change(current_status, "")
+
         return zone
     
     def _create_download_progress_zone(self, parent):
@@ -305,20 +310,24 @@ class OllamaUI:
         )
         input_label.pack(anchor='w', pady=(0, UIStyles.SPACE_SM))
         
+        # Input and Download Button Row
+        input_row = ctk.CTkFrame(download_section, fg_color="transparent")
+        input_row.pack(fill='x', pady=(0, UIStyles.SPACE_MD))
+        
         self.model_input = UIStyles.create_input_field(
-            download_section,
+            input_row,
             placeholder_text="Enter model name from Ollama repository..."
         )
-        self.model_input.pack(fill='x', pady=(0, UIStyles.SPACE_MD))
+        self.model_input.pack(side='left', fill='x', expand=True, padx=(0, UIStyles.SPACE_MD))
         
         self.download_model_btn = UIStyles.create_button(
-            download_section,
+            input_row,
             text="Download Model",
             command=self._on_download_model_click,
             width=160,
             height=40
         )
-        self.download_model_btn.pack(anchor='e')
+        self.download_model_btn.pack(side='right')
         
         # Model list section
         list_section = ctk.CTkFrame(zone, fg_color="transparent")
@@ -341,8 +350,14 @@ class OllamaUI:
             values=[],
             command=self._on_model_select,
             width=300,
-            height=36
+            height=36,
+            fg_color=UIStyles.SURFACE_COLOR,
+            button_color=UIStyles.SECONDARY_COLOR,
+            button_hover_color=UIStyles.HOVER_COLOR,
+            dropdown_fg_color=UIStyles.SURFACE_COLOR,
+            text_color=UIStyles.TEXT_SECONDARY # Start with muted text for placeholder
         )
+        self.model_dropdown.set("empty")
         self.model_dropdown.pack(side='left', padx=(0, UIStyles.SPACE_MD))
         
         self.activate_model_btn = UIStyles.create_button(
@@ -361,10 +376,33 @@ class OllamaUI:
             command=self._on_delete_model_click,
             state="disabled",
             width=140,
-            height=36
+            height=36,
+            fg_color=UIStyles.SECONDARY_COLOR,
+            hover_color=UIStyles.ERROR_COLOR
         )
         self.delete_model_btn.pack(side='left')
         
+        # Progress Section (Hidden by default)
+        self.model_progress_frame = ctk.CTkFrame(zone, fg_color="transparent")
+        self.model_progress_frame.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+        self.model_progress_frame.pack_forget() # Hide initially
+
+        progress_header = ctk.CTkFrame(self.model_progress_frame, fg_color="transparent")
+        progress_header.pack(fill='x', pady=(0, 5))
+        
+        self.model_progress_title = ctk.CTkLabel(progress_header, text="Downloading Model...", font=UIStyles.FONT_NORMAL, text_color=UIStyles.TEXT_SECONDARY)
+        self.model_progress_title.pack(side='left')
+        self.model_progress_label = ctk.CTkLabel(progress_header, text="0%", font=UIStyles.FONT_NORMAL, text_color=UIStyles.TEXT_PRIMARY)
+        self.model_progress_label.pack(side='right')
+
+        self.model_progress_bar = ctk.CTkProgressBar(self.model_progress_frame, height=10, progress_color=UIStyles.PRIMARY_COLOR)
+        self.model_progress_bar.pack(fill='x')
+        self.model_progress_bar.set(0)
+
+        # Trigger initial model list refresh if running
+        if self.status_manager.get_ollama_status() == "Running":
+            self._refresh_model_list()
+
         return zone
     
     def _create_system_info_zone(self, parent):
@@ -455,28 +493,37 @@ class OllamaUI:
         """Handle Ollama status changes."""
         # Update status text and colors
         if hasattr(self, 'status_label') and self.status_label:
-            self.status_label.configure(text=new_status)
+            self.parent.after(0, lambda: self.status_label.configure(text=new_status))
         if hasattr(self, 'ai_status_label') and self.ai_status_label:
-            self.ai_status_label.configure(text=f"Status: {new_status}")
+            self.parent.after(0, lambda: self.ai_status_label.configure(text=f"Status: {new_status}"))
         
         # Update status indicator color
         color_map = {
-            "Checking": "#f59e0b",
+            "Stopped": "#94a3b8", # Neutral grey-blue
             "Not Installed": "#ef4444",
             "Starting": "#f59e0b",
             "Running": "#10b981",
-            "Error": "#ef4444"
+            "Error": "#ef4444",
+            "Downloading": "#3b82f6",
+            "Installing": "#8b5cf6"
         }
         
         color = color_map.get(new_status, "#f59e0b")
         if hasattr(self, 'status_indicator') and self.status_indicator:
-            self.status_indicator.configure(text_color=color)
+            self.parent.after(0, lambda: self.status_indicator.configure(text_color=color))
         
         # Update button states
-        self._update_button_states(new_status)
+        self.parent.after(0, lambda: self._update_button_states(new_status))
+        
+        # Refresh model list if service just started running
+        if new_status == "Running":
+            self.parent.after(500, self._refresh_model_list)
     
     def _on_active_model_change(self, new_model: Optional[str], old_model: Optional[str]):
         """Handle active model changes."""
+        self.parent.after(0, lambda: self._handle_active_model_ui_update(new_model))
+
+    def _handle_active_model_ui_update(self, new_model):
         model_text = new_model if new_model else "None"
         if hasattr(self, 'active_model_label') and self.active_model_label:
             self.active_model_label.configure(text=model_text)
@@ -487,86 +534,182 @@ class OllamaUI:
     
     def _update_button_states(self, status: str):
         """Update button states based on Ollama status."""
+        # Dashboard buttons (if they exist)
+        if hasattr(self, 'start_btn'):
+            self.start_btn.configure(state="disabled")
+        if hasattr(self, 'stop_btn'):
+            self.stop_btn.configure(state="disabled")
+        if hasattr(self, 'restart_btn'):
+            self.restart_btn.configure(state="disabled")
+        if hasattr(self, 'delete_btn'):
+            self.delete_btn.configure(state="disabled")
+
+        if not hasattr(self, 'ai_service_btn') or not self.ai_service_btn:
+             return
+
+        ollama_installed = self.file_manager.ollama_exists()
+
         if status == "Not Installed":
-            # Dashboard buttons (if they exist)
-            if hasattr(self, 'start_btn'):
-                self.start_btn.configure(state="disabled")
-            if hasattr(self, 'stop_btn'):
-                self.stop_btn.configure(state="disabled")
-            if hasattr(self, 'restart_btn'):
-                self.restart_btn.configure(state="disabled")
-            if hasattr(self, 'delete_btn'):
-                self.delete_btn.configure(state="disabled")
-
-            # AI Setup buttons
-            if hasattr(self, 'ai_start_btn'):
-                self.ai_start_btn.configure(state="disabled")
-            if hasattr(self, 'ai_stop_btn'):
-                self.ai_stop_btn.configure(state="disabled")
-            if hasattr(self, 'ai_restart_btn'):
-                self.ai_restart_btn.configure(state="disabled")
-            if hasattr(self, 'ai_delete_btn'):
-                self.ai_delete_btn.configure(state="disabled")
+            # If not installed, disable service button
+            self.ai_service_btn.configure(
+                state="disabled", 
+                text="ON", 
+                fg_color=UIStyles.SUCCESS_COLOR
+            )
+            self.ai_action_btn.configure(state="normal", text="Download Ollama")
+        elif status == "Stopped":
+            self.ai_service_btn.configure(
+                state="normal", 
+                text="ON", 
+                fg_color=UIStyles.SUCCESS_COLOR,
+                hover_color=UIStyles.PRIMARY_HOVER
+            )
+            self.ai_action_btn.configure(state="normal", text="Delete Ollama")
         elif status == "Running":
-            # Dashboard buttons (if they exist)
-            if hasattr(self, 'start_btn'):
-                self.start_btn.configure(state="disabled")
-            if hasattr(self, 'stop_btn'):
-                self.stop_btn.configure(state="normal")
-            if hasattr(self, 'restart_btn'):
-                self.restart_btn.configure(state="normal")
-            if hasattr(self, 'delete_btn'):
-                self.delete_btn.configure(state="normal")
-
-            # AI Setup buttons
-            if hasattr(self, 'ai_start_btn'):
-                self.ai_start_btn.configure(state="disabled")
-            if hasattr(self, 'ai_stop_btn'):
-                self.ai_stop_btn.configure(state="normal")
-            if hasattr(self, 'ai_restart_btn'):
-                self.ai_restart_btn.configure(state="normal")
-            if hasattr(self, 'ai_delete_btn'):
-                self.ai_delete_btn.configure(state="normal")
+            self.ai_service_btn.configure(
+                state="normal", 
+                text="OFF", 
+                fg_color=UIStyles.SECONDARY_COLOR, 
+                hover_color=UIStyles.ERROR_COLOR
+            )
+            self.ai_action_btn.configure(state="normal", text="Delete Ollama")
+        elif status == "Checking":
+            self.ai_service_btn.configure(state="disabled", text="...")
+            self.ai_action_btn.configure(state="disabled")
+        elif status == "Downloading":
+            self.ai_service_btn.configure(state="disabled", text="ON")
+            self.ai_action_btn.configure(state="disabled", text="Downloading...")
+        elif status == "Installing":
+            self.ai_service_btn.configure(state="disabled", text="ON")
+            self.ai_action_btn.configure(state="disabled", text="Installing...")
         elif status == "Starting":
-            # Dashboard buttons (if they exist)
-            if hasattr(self, 'start_btn'):
-                self.start_btn.configure(state="disabled")
-            if hasattr(self, 'stop_btn'):
-                self.stop_btn.configure(state="disabled")
-            if hasattr(self, 'restart_btn'):
-                self.restart_btn.configure(state="disabled")
-            if hasattr(self, 'delete_btn'):
-                self.delete_btn.configure(state="disabled")
+            self.ai_service_btn.configure(state="disabled", text="...")
+            self.ai_action_btn.configure(state="disabled", text="Delete Ollama")
+        elif status == "Stopping":
+            self.ai_service_btn.configure(state="disabled", text="...")
+            self.ai_action_btn.configure(state="disabled", text="Delete Ollama")
+        elif status == "Error":
+            self.ai_service_btn.configure(
+                state="normal" if ollama_installed else "disabled", 
+                text="ON", 
+                fg_color=UIStyles.SUCCESS_COLOR
+            )
+            if ollama_installed:
+                self.ai_action_btn.configure(state="normal", text="Delete Ollama")
+            else:
+                self.ai_action_btn.configure(state="normal", text="Download Ollama")
+        else: # e.g. "Checking"
+            self.ai_service_btn.configure(state="disabled", text="Checking...")
+            self.ai_action_btn.configure(state="disabled")
 
-            # AI Setup buttons
-            if hasattr(self, 'ai_start_btn'):
-                self.ai_start_btn.configure(state="disabled")
-            if hasattr(self, 'ai_stop_btn'):
-                self.ai_stop_btn.configure(state="disabled")
-            if hasattr(self, 'ai_restart_btn'):
-                self.ai_restart_btn.configure(state="disabled")
-            if hasattr(self, 'ai_delete_btn'):
-                self.ai_delete_btn.configure(state="disabled")
+    def _refresh_model_list(self):
+        """Fetch models from Ollama and update dropdown."""
+        if not hasattr(self, 'model_dropdown') or not self.model_dropdown:
+            return
+
+        def update():
+            try:
+                models = self.ollama_manager.list_models()
+                model_names = [m.get('name') for m in models if m.get('name')]
+                
+                if not model_names:
+                    model_names = ["empty"]
+                
+                self.parent.after(0, lambda: self._update_dropdown_items(model_names))
+            except Exception as e:
+                print(f"Error refreshing model list: {e}")
+
+        threading.Thread(target=update, daemon=True).start()
+
+    def _update_dropdown_items(self, model_names: list):
+        """Update model dropdown items safely."""
+        if hasattr(self, 'model_dropdown') and self.model_dropdown:
+            self.model_dropdown.configure(values=model_names)
+            
+            # If current selection is not in list, set to first or empty
+            current = self.model_dropdown.get()
+            if current not in model_names:
+                new_val = model_names[0] if model_names else "empty"
+                self.model_dropdown.set(new_val)
+                self._on_model_select(new_val)
+            
+            # Auto-select active model if sync needed
+            active = self.status_manager.get_active_model()
+            if active and active in model_names:
+                self.model_dropdown.set(active)
+                self._on_model_select(active)
     
     # Button click handlers
+    def _on_service_toggle_click(self):
+        """Handle start/stop service toggle."""
+        status = self.status_manager.get_ollama_status()
+        
+        # Immediate visual feedback
+        self.ai_service_btn.configure(state="disabled", text="...")
+        
+        if status == "Running":
+            threading.Thread(target=self.ollama_manager.stop_service).start()
+        else:
+            threading.Thread(target=self.ollama_manager.start_service).start()
+
+    def _on_action_click(self):
+        """Handle download/delete action click."""
+        if self.file_manager.ollama_exists():
+            # Delete logic
+            if messagebox.askyesno("Delete Ollama", "Are you sure you want to delete Ollama and all models?"):
+                threading.Thread(target=self.ollama_manager.delete_ollama).start()
+        else:
+            # Download logic
+            self._on_download_click()
+
     def _on_start_click(self):
-        """Handle start button click."""
+        """Handle start button click (legacy/other)."""
         threading.Thread(target=self.ollama_manager.start_service).start()
     
     def _on_stop_click(self):
-        """Handle stop button click."""
+        """Handle stop button click (legacy/other)."""
         threading.Thread(target=self.ollama_manager.stop_service).start()
     
     def _on_restart_click(self):
-        """Handle restart button click."""
+        """Handle restart button click (legacy/other)."""
         threading.Thread(target=self.ollama_manager.restart_service).start()
     
     def _on_download_click(self):
         """Handle download button click."""
-        threading.Thread(target=self.ollama_manager.download_ollama).start()
+        self.ollama_progress_frame.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+        self.ollama_progress_bar.set(0)
+        self.ollama_progress_label.configure(text="0%")
+        
+        # Disable button during download
+        self.ai_action_btn.configure(state="disabled", text="Downloading...")
+        
+        def progress_callback(current, total, status_text):
+            if total > 0:
+                progress = current / total
+                size_info = f"{self.format_bytes(current)} / {self.format_bytes(total)}"
+                self.parent.after(0, lambda: self.ollama_progress_bar.set(progress))
+                self.parent.after(0, lambda: self.ollama_progress_label.configure(text=f"{int(progress * 100)}% ({size_info})"))
+        
+        def ollama_status_callback(new_status, old_status):
+            if new_status == "Installing":
+                self.parent.after(0, lambda: self.ollama_progress_label.configure(text="Installing... (Extracting files)"))
+                self.parent.after(0, lambda: self.ollama_progress_bar.set(1.0))
+        
+        # Temporary subscribe to status changes
+        self.status_manager.add_callback('ollama_status', ollama_status_callback)
+
+        def complete_callback(success, error_message=None):
+            self.status_manager.remove_callback('ollama_status', ollama_status_callback)
+            self.parent.after(2000, lambda: self.ollama_progress_frame.pack_forget())
+            # Re-enable button is now handled by _on_ollama_status_change
+            
+            if not success and error_message:
+                self.parent.after(0, lambda: tk.messagebox.showerror("Download Error", error_message))
+
+        threading.Thread(target=self.ollama_manager.download_ollama, args=(progress_callback, complete_callback)).start()
     
     def _on_delete_click(self):
-        """Handle delete button click."""
+        """Handle delete button click (legacy/other)."""
         threading.Thread(target=self.ollama_manager.delete_ollama).start()
     
     def _on_download_model_click(self):
@@ -574,25 +717,67 @@ class OllamaUI:
         if hasattr(self, 'model_input') and self.model_input:
             model_name = self.model_input.get().strip()
             if model_name:
-                threading.Thread(target=self.ollama_manager.download_model, args=(model_name,)).start()
+                self.model_progress_frame.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+                self.model_progress_bar.set(0)
+                self.model_progress_label.configure(text="0%")
+                self.model_progress_title.configure(text=f"Downloading {model_name}...")
+
+                def progress_callback(status, total, completed):
+                    if total > 0:
+                        progress = completed / total
+                        size_info = f"{self.format_bytes(completed)} / {self.format_bytes(total)}"
+                        self.parent.after(0, lambda: self.model_progress_bar.set(progress))
+                        self.parent.after(0, lambda: self.model_progress_label.configure(text=f"{int(progress * 100)}% ({size_info})"))
+
+                def complete_callback(success, error_message=None):
+                    self.parent.after(2000, lambda: self.model_progress_frame.pack_forget())
+                    if success:
+                        self.parent.after(0, self._refresh_model_list)
+                    elif error_message:
+                        self.parent.after(0, lambda: tk.messagebox.showerror("Download Error", error_message))
+
+                threading.Thread(target=self.ollama_manager.download_model, args=(model_name, progress_callback, complete_callback)).start()
     
     def _on_model_select(self, model_name: str):
         """Handle model selection from dropdown."""
+        # Restore normal text color if not empty
+        if model_name != "empty":
+            self.model_dropdown.configure(text_color=UIStyles.TEXT_PRIMARY)
+        else:
+            self.model_dropdown.configure(text_color=UIStyles.TEXT_SECONDARY)
+
         if hasattr(self, 'activate_model_btn') and self.activate_model_btn:
-            self.activate_model_btn.configure(state="normal")
+            self.activate_model_btn.configure(state="normal" if model_name != "empty" else "disabled")
         if hasattr(self, 'delete_model_btn') and self.delete_model_btn:
-            self.delete_model_btn.configure(state="normal")
+            self.delete_model_btn.configure(
+                state="normal" if model_name != "empty" else "disabled",
+                fg_color=UIStyles.SECONDARY_COLOR,
+                hover_color=UIStyles.ERROR_COLOR
+            )
     
     def _on_activate_model_click(self):
         """Handle activate model button click."""
         if hasattr(self, 'model_dropdown') and self.model_dropdown:
             model_name = self.model_dropdown.get()
-            if model_name:
-                self.ollama_manager.activate_model(model_name)
+            if model_name and model_name != "empty":
+                success = self.ollama_manager.activate_model(model_name)
+                if success:
+                     messagebox.showinfo("Model Activated", f"Model '{model_name}' is now active.")
+                else:
+                     messagebox.showerror("Activation Error", f"Failed to activate model '{model_name}'.")
     
     def _on_delete_model_click(self):
         """Handle delete model button click."""
         if hasattr(self, 'model_dropdown') and self.model_dropdown:
             model_name = self.model_dropdown.get()
-            if model_name:
-                threading.Thread(target=self.ollama_manager.delete_model, args=(model_name,)).start()
+            if model_name and model_name != "empty":
+                if messagebox.askyesno("Delete Model", f"Are you sure you want to delete model '{model_name}'?"):
+                    def delete_task():
+                        success = self.ollama_manager.delete_model(model_name)
+                        if success:
+                            self.parent.after(0, lambda: messagebox.showinfo("Success", f"Model '{model_name}' deleted."))
+                            self._refresh_model_list()
+                        else:
+                            self.parent.after(0, lambda: messagebox.showerror("Error", f"Failed to delete model '{model_name}'."))
+                    
+                    threading.Thread(target=delete_task, daemon=True).start()

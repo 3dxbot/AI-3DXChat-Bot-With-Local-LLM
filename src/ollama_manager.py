@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Optional, Dict, List, Callable
 import threading
 import logging
+import zipfile
 
 from .file_manager import FileManager
 from .download_manager import DownloadManager
@@ -80,13 +81,9 @@ class OllamaManager:
             if self.is_service_running():
                 self.status_manager.set_ollama_status("Running")
                 return True
-            
-            # Try to start service
-            if self.start_service():
-                self.status_manager.set_ollama_status("Running")
-                return True
             else:
-                self.status_manager.set_ollama_status("Error")
+                # If not running but exists, it's "Stopped"
+                self.status_manager.set_ollama_status("Stopped")
                 return False
                 
         except Exception as e:
@@ -111,6 +108,14 @@ class OllamaManager:
             # Ensure temp directory exists
             os.makedirs(os.path.dirname(temp_path), exist_ok=True)
             
+            # Simplified: Always delete existing zip to avoid corrupted/partial downloads
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                    self.logger.info(f"Deleted existing archive at {temp_path} for clean download")
+                except Exception as e:
+                    self.logger.warning(f"Failed to delete existing zip: {e}")
+
             def on_progress(progress, total, status_text):
                 if progress_callback:
                     progress_callback(progress, total, status_text)
@@ -118,15 +123,15 @@ class OllamaManager:
             def on_complete(success, error_message=None):
                 if success:
                     try:
-                        import zipfile
+                        self.status_manager.set_ollama_status("Installing")
                         self.logger.info("Extracting Ollama...")
                         with zipfile.ZipFile(temp_path, 'r') as zip_ref:
                             # Extract all to the ollama directory
                             extract_path = os.path.dirname(self.file_manager.get_ollama_path())
                             zip_ref.extractall(extract_path)
                             
-                        self.status_manager.set_ollama_status("Not Installed") # Trigger detection
                         self.logger.info("Ollama downloaded and extracted successfully")
+                        self.status_manager.set_ollama_status("Stopped") # Trigger detection
                         
                         # Cleanup zip
                         try:
@@ -175,23 +180,54 @@ class OllamaManager:
             
             # Kill any existing Ollama processes
             self._kill_existing_processes()
+            time.sleep(2)  # Give system time to release ports
             
             # Start Ollama service
-            self._service_thread = threading.Thread(target=self._run_service)
-            self._service_thread.daemon = True
-            self._service_thread.start()
+            executable = str(self.ollama_path)
+            self.logger.info(f"Starting Ollama service: {executable}")
+            
+            # Set environment variables for local operation
+            env = os.environ.copy()
+            env["OLLAMA_MODELS"] = str(self.file_manager.get_models_path())
+            
+            # Use subprocess.Popen to start it as a detached process on Windows
+            if os.name == 'nt':
+                subprocess.Popen(
+                    [executable, "serve"],
+                    creationflags=subprocess.CREATE_NO_WINDOW | subprocess.DETACHED_PROCESS,
+                    close_fds=True,
+                    env=env
+                )
+            else:
+                subprocess.Popen([executable, "serve"], start_new_session=True, env=env)
             
             # Wait for service to be ready
-            timeout = 30
+            sanity_timeout = 600 # 10 minute sanity limit to prevent infinite loops
             start_time = time.time()
+            self.logger.info("Waiting for Ollama API to initialize. This may take a while depending on machine speed...")
             
-            while time.time() - start_time < timeout:
+            while time.time() - start_time < sanity_timeout:
+                # Check 1: API response
                 if self.is_service_running():
-                    self.logger.info("Ollama service started successfully")
+                    self.logger.info("Ollama service started and API is responsive")
+                    self.status_manager.set_ollama_status("Running")
                     return True
-                time.sleep(1)
+                
+                # Check 2: Process presence verification
+                process_name = "ollama.exe" if os.name == 'nt' else "ollama"
+                if not self._is_process_running(process_name):
+                    self.logger.error("Ollama process died during initialization")
+                    self.status_manager.set_ollama_status("Error")
+                    return False
+                
+                # Progress heartbeat
+                wait_duration = int(time.time() - start_time)
+                if wait_duration % 15 == 0:
+                    self.logger.info(f"Ollama process is active, still waiting for API response... ({wait_duration}s elapsed)")
+                
+                time.sleep(2)
             
-            self.logger.error("Timeout waiting for Ollama service to start")
+            self.logger.error(f"Sanity timeout reached ({sanity_timeout}s) waiting for Ollama service")
             return False
             
         except Exception as e:
@@ -207,11 +243,14 @@ class OllamaManager:
         """
         try:
             self._stop_service_event.set()
+            self.status_manager.set_ollama_status("Stopping")
             
             # Kill Ollama processes
             self._kill_existing_processes()
             
             self.logger.info("Ollama service stopped")
+            self.status_manager.set_ollama_status("Stopped") 
+            self.detect_ollama()
             return True
             
         except Exception as e:
@@ -367,6 +406,14 @@ class OllamaManager:
             bool: True if activation successful, False otherwise.
         """
         try:
+            # Verify model existence
+            models = self.list_models()
+            model_names = [m.get('name') for m in models]
+            
+            if model_name not in model_names:
+                self.logger.error(f"Cannot activate model {model_name}: Model not found locally")
+                return False
+                
             self.status_manager.set_active_model(model_name)
             return True
         except Exception as e:
@@ -388,11 +435,37 @@ class OllamaManager:
                 if 'ollama' in proc.info['name'].lower():
                     try:
                         proc.kill()
+                        self.logger.info(f"Killed existing Ollama process (PID: {proc.info['pid']})")
                     except psutil.NoSuchProcess:
                         pass
         except ImportError:
             # Fallback for systems without psutil
             try:
-                subprocess.run(['taskkill', '/F', '/IM', 'ollama.exe'], capture_output=True)
+                import os
+                if os.name == 'nt':
+                    subprocess.run(['taskkill', '/F', '/IM', 'ollama.exe'], capture_output=True)
+                else:
+                    subprocess.run(['pkill', '-f', 'ollama'], capture_output=True)
             except:
                 pass
+
+    def _is_process_running(self, process_name: str) -> bool:
+        """Check if a process is running by name."""
+        try:
+            import psutil
+            for proc in psutil.process_iter(['name']):
+                if proc.info['name'].lower() == process_name.lower():
+                    return True
+            return False
+        except ImportError:
+            # Fallback without psutil
+            try:
+                import os
+                if os.name == 'nt':
+                    output = subprocess.check_output(['tasklist'], text=True)
+                    return process_name.lower() in output.lower()
+                else:
+                    subprocess.check_output(['pgrep', '-f', process_name])
+                    return True
+            except:
+                return False

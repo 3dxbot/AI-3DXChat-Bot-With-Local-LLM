@@ -55,3 +55,6 @@ data/models/
 
 # Logs
 logs/
+
+# Ollama
+OLLAMA/
