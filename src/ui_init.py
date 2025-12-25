@@ -318,7 +318,7 @@ class UIInitMixin:
         settings_card.pack(fill=tk.X, padx=10, pady=(0, 10))
 
         ctk.CTkLabel(settings_card, text="Language", font=TOGGLE_FONT, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
-        language_options = ["en", "ru", "fr", "es"]
+        language_options = ["en", "ru", "fr", "es", "it", "de"]
         self.language_dropdown = ctk.CTkOptionMenu(
             settings_card, 
             values=language_options, 

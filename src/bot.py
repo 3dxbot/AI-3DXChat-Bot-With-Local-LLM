@@ -27,6 +27,7 @@ from .config import (SETTINGS_FILE, TESSERACT_PATH, SCAN_INTERVAL_IDLE, SCAN_INT
                     CLOSE_BTN_IMAGE_PATH)
 from .chat_processor import ChatProcessor
 from .utils import extract_text_from_image, extract_digits_from_image
+from .translation_manager import TranslationManager
 
 # Import mixins
 from .bot_settings import BotSettingsMixin
@@ -140,6 +141,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         # Language switching state
         self.lang_consistency_counter = 0
         self.pending_new_language = None
+        self.translation_manager = TranslationManager()
 
         self.hotkey_phrases = {}
         self.global_prompt = ""
@@ -375,6 +377,128 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         asyncio.set_event_loop(self.loop)
         self.loop.run_until_complete(self._bot_loop())
 
+    def translate_user_input(self, text):
+        """Translate user input to English if translation layer is active."""
+        if not self.use_translation_layer or self.current_language == 'en':
+            return text
+        
+        self.log(f"Translating user input from {self.current_language}...", internal=True)
+        return self.translation_manager.translate_to_en(text, self.current_language)
+
+    def translate_bot_response(self, text):
+        """Translate bot response from English to current language if active."""
+        if not self.use_translation_layer or self.current_language == 'en':
+            return text
+
+        self.log(f"Translating bot response to {self.current_language}...", internal=True)
+        return self.translation_manager.translate_from_en(text, self.current_language)
+
+    def handle_language_detection(self, message):
+        """
+        Detect language of the message and handle switching logic.
+        """
+        if not self.chat_processor:
+            return
+            
+        detected_lang, is_certain = self.chat_processor.detect_language(message, self.current_language)
+        
+        if detected_lang != self.current_language:
+            # If we are certain about the language (long text or many markers)
+            if is_certain:
+                self.log(f"High confidence language detection: {detected_lang}. Switching.", internal=True)
+                should_switch = True
+            else:
+                # Otherwise accumulate 'stickiness' counter
+                if detected_lang == self.pending_new_language:
+                    self.lang_consistency_counter += 1
+                else:
+                    self.pending_new_language = detected_lang
+                    self.lang_consistency_counter = 1
+
+                if self.lang_consistency_counter >= 2:
+                    self.log(f"Sustained language change detected: {detected_lang}. Switching.", internal=True)
+                    should_switch = True
+                else:
+                    should_switch = False
+                    self.log(f"Potential language change ({detected_lang}) detected. Waiting for confirmation ({self.lang_consistency_counter}/2).", internal=True)
+            
+            if should_switch:
+                self.current_language = detected_lang
+                self.lang_consistency_counter = 0
+                self.pending_new_language = None
+                
+                # Update UI Var
+                if hasattr(self.ui, 'hiwaifu_language_var'):
+                    self.ui.hiwaifu_language_var.set(detected_lang)
+                if hasattr(self.ui, 'language_dropdown'):
+                    self.ui.root.after(0, lambda lang=detected_lang: self.ui.language_dropdown.set(lang))
+                
+                # Auto-enable translation layer for non-en
+                if detected_lang != 'en' and not self.use_translation_layer:
+                    self.use_translation_layer = True
+                    if hasattr(self.ui, 'use_translation_var'):
+                        self.ui.use_translation_var.set(True)
+                        self.ui.root.after(0, self.ui.update_switch_colors)
+                    self.log(f"Auto-enabling translation layer for {detected_lang}.", internal=True)
+                
+                # Update OCR language dynamically
+                if detected_lang == 'ru':
+                    self.ocr_language = "eng+rus"
+                elif detected_lang == 'fr':
+                    self.ocr_language = "eng+fra"
+                elif detected_lang == 'es':
+                    self.ocr_language = "eng+spa"
+                elif detected_lang == 'it':
+                    self.ocr_language = "eng+ita"
+                elif detected_lang == 'de':
+                    self.ocr_language = "eng+deu"
+                else:
+                    self.ocr_language = "eng"
+                
+                if self.chat_processor:
+                    self.chat_processor.ocr_language = self.ocr_language
+        else:
+            # Reset counter if language matches current
+            self.lang_consistency_counter = 0
+            self.pending_new_language = None
+
+        # Always ensure translation layer is enabled if we are in a non-en language
+        if self.current_language != 'en' and not self.use_translation_layer:
+            self.use_translation_layer = True
+            if hasattr(self, 'ui') and self.ui:
+                self.ui.use_translation_var.set(True)
+                self.ui.root.after(0, self.ui.update_switch_colors)
+            self.log(f"Auto-enabling translation layer for {self.current_language}.", internal=True)
+
+    async def get_translated_response(self, message, author=None):
+        """
+        Unified method to handle language detection, translation, LLM call, and response translation.
+        Used by both scanning loop and UI chat.
+        """
+        # 1. Detection and Auto-Switching
+        self.handle_language_detection(message)
+        
+        # 2. Translate User Input
+        translated_input = self.translate_user_input(message)
+        
+        # 3. Format for LLM
+        nick = author if author else self.current_partner_nick
+        llm_input = f"{nick}: {translated_input}" if nick else translated_input
+        self.log(f"LLM Input (Translated): {repr(llm_input)}", internal=True)
+        
+        # 4. Generate Response
+        response = await self.ui.ollama_manager.generate_response(
+            llm_input,
+            system_prompt=self.global_prompt,
+            manifest=self.character_manifest
+        )
+        
+        if response:
+            # 5. Translate Response Back
+            translated_response = self.translate_bot_response(response)
+            return translated_response
+        return None
+
 
     async def _bot_loop(self):
         """
@@ -543,44 +667,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                         self.current_partner_nick = author
 
                     # Automatic language switching based on detected language
-                    if getattr(self, 'use_translation_layer', False):
-                        detected_lang, is_certain = self.chat_processor.detect_language(message, self.current_language)
-                        
-                        if detected_lang != self.current_language:
-                            # If we are certain about the language (long text or many markers)
-                            if is_certain:
-                                self.log(f"High confidence language detection: {detected_lang}. Switching.", internal=True)
-                                should_switch = True
-                            else:
-                                # Otherwise accumulate 'stickiness' counter
-                                if detected_lang == self.pending_new_language:
-                                    self.lang_consistency_counter += 1
-                                else:
-                                    self.pending_new_language = detected_lang
-                                    self.lang_consistency_counter = 1
-
-                                if self.lang_consistency_counter >= 2:
-                                    self.log(f"Sustained language change detected: {detected_lang}. Switching.", internal=True)
-                                    should_switch = True
-                                else:
-                                    should_switch = False
-                                    self.log(f"Potential language change ({detected_lang}) detected. Waiting for confirmation ({self.lang_consistency_counter}/2).", internal=True)
-                            
-                            if should_switch:
-                                self.current_language = detected_lang
-                                self.lang_consistency_counter = 0
-                                self.pending_new_language = None
-                                self.ui.hiwaifu_language_var.set(detected_lang)
-                                self.ui.root.after(0, lambda lang=detected_lang: self.ui.language_dropdown.set(lang))
-                                
-                                if self.ui.ollama_manager.is_service_running():
-                                    self.log(f"OCR language changed to: {detected_lang}.", internal=True)
-                                    # Language logic is now purely local prompts and OCR
-                                    pass
-                        else:
-                            # Reset counter if previous language came
-                            self.lang_consistency_counter = 0
-                            self.pending_new_language = None
+                    self.handle_language_detection(message)
 
                     # --- Processing Message ---
                     llm_message = message
@@ -593,21 +680,12 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                     else:
                         dot_task = asyncio.create_task(self._type_dot_in_game_loop())
                         
-                        # Prepare user prompt with nick context if available
-                        user_input = f"{author}: {message}" if author else message
-                        self.log(f"Sending to local LLM: {repr(user_input)}", internal=True)
-                        
-                        response = await self.ui.ollama_manager.generate_response(
-                            user_input, 
-                            system_prompt=self.global_prompt, 
-                            max_history=10,
-                            manifest=self.character_manifest
-                        )
-                        # Add scanned message and response to UI
+                        # Add scanned message to UI
                         if hasattr(self.ui, '_add_message'):
                             self.ui.root.after(0, lambda a=author, m=message: self.ui._add_message(a, m, is_bot=False))
-                        
-                        self.log(f"LLM response: {repr(response)}", internal=True)
+
+                        # Use consolidated translation and response generation
+                        response = await self.get_translated_response(message, author=author)
 
                         dot_task.cancel()
                         try:
@@ -621,7 +699,6 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                         processed_parts = self.chat_processor.process_message(response)
                         await self.send_to_game(processed_parts, force=True)
                         self.last_message_time = time.time()  # Update activity time after sending
-                        self.log("LLM response inserted into game.", internal=True)
                         
                         # Add bot response to UI
                         if hasattr(self.ui, '_add_message'):

@@ -63,6 +63,7 @@ class BotSettingsMixin:
         save_settings: Save settings to file.
         add_nick: Add a nick to a list.
         remove_nick: Remove a nick from a list.
+        change_language: Change the bot's language.
     """
 
     def _load_hotkey_settings(self):
@@ -325,7 +326,7 @@ class BotSettingsMixin:
                     self.active_model = settings.get("active_model", None)
                     ocr_lang = settings.get('ocr_language', 'en')
                     # Ensure ocr_language is one of the supported languages
-                    supported_langs = ['en', 'ru', 'fr', 'es']
+                    supported_langs = ['en', 'ru', 'fr', 'es', 'it', 'de']
                     self.ocr_language = ocr_lang if ocr_lang in supported_langs else 'en'
                     self.current_language = self.ocr_language  # Sync current_language with loaded ocr_language
                     self.show_overlay = settings.get('show_overlay', False)
@@ -443,3 +444,40 @@ class BotSettingsMixin:
                     self.log(f"- Global Prompt: {len(self.global_prompt)} chars", internal=True)
             except Exception as e:
                 self.log(f"Error loading active character data: {e}", internal=True)
+
+    def change_language(self, language):
+        """
+        Change the bot's language and update OCR settings.
+
+        Args:
+            language (str): The language code to change to.
+        """
+        self.current_language = language
+        
+        # Update OCR language based on the selected language
+        if language == 'ru':
+            self.ocr_language = "eng+rus"
+        elif language == 'fr':
+            self.ocr_language = "eng+fra"
+        elif language == 'es':
+            self.ocr_language = "eng+spa"
+        elif language == 'it':
+            self.ocr_language = "eng+ita"
+        elif language == 'de':
+            self.ocr_language = "eng+deu"
+        else:
+            self.ocr_language = "eng"
+        
+        if self.chat_processor:
+            self.chat_processor.ocr_language = self.ocr_language
+            
+        # Auto-enable translation layer for non-en
+        if language != 'en' and not self.use_translation_layer:
+            self.use_translation_layer = True
+            if hasattr(self, 'ui') and self.ui:
+                self.ui.use_translation_var.set(True)
+                self.ui.root.after(0, self.ui.update_switch_colors)
+            self.log(f"Auto-enabling translation layer for {language}.", internal=True)
+
+        self.save_settings()
+        self.log(f"Language changed to: {language}", internal=True)

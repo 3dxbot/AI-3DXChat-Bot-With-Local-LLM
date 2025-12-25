@@ -36,6 +36,9 @@ class UIHandlersMixin:
         toggle_window_visibility: Toggle window visibility.
         toggle_nicks_collapse: Toggle nick lists section visibility.
         toggle_logs_collapse: Toggle logs section visibility.
+        on_translation_toggle: Handle translation toggle.
+        on_language_selected: Handle language selection from dropdown.
+        update_switch_colors: Update switch colors based on state.
     """
 
     def on_start_click(self):
@@ -252,3 +255,42 @@ class UIHandlersMixin:
             self.logs_content_frame.grid_remove()
             self.logs_collapse_btn.configure(text="▼")
             self.logs_collapsed = True
+
+    def on_translation_toggle(self):
+        """
+        Handle translation toggle.
+        """
+        if self.bot:
+            self.bot.use_translation_layer = self.use_translation_var.get()
+            self.bot._save_hotkey_settings() # Save selection
+            self.bot.log(f"Translation layer {'enabled' if self.bot.use_translation_layer else 'disabled'}.", internal=True)
+        
+        self.update_switch_colors()
+
+    def on_language_selected(self, language):
+        """
+        Handle language selection from dropdown.
+        """
+        if self.bot:
+            self.bot.change_language(language)
+            self.hiwaifu_language_var.set(language)
+            
+    def update_switch_colors(self):
+        """
+        Update switch colors based on state.
+        """
+        from .ui_styles import UIStyles
+        
+        # Mapping of variables to switches
+        switches = [
+            (self.use_translation_var, self.translation_layer_switch),
+            (self.autonomous_var, self.auto_mode_switch),
+            (self.hooker_enabled_var, self.hooker_switch),
+            (self.show_zones_var, self.show_zones_switch)
+        ]
+        
+        for var, sw in switches:
+            if var.get():
+                sw.configure(fg_color=UIStyles.HOVER_COLOR, progress_color=UIStyles.HOVER_COLOR)
+            else:
+                sw.configure(fg_color=UIStyles.DISABLED_COLOR, progress_color=UIStyles.DISABLED_COLOR)

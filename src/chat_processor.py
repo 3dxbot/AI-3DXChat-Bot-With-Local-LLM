@@ -62,6 +62,14 @@ class ChatProcessor:
         },
         'en': {
             'words': {'the', 'and', 'is', 'it', 'to', 'for', 'with', 'you', 'are', 'this', 'that', 'not', 'have'}
+        },
+        'it': {
+            'words': {'il', 'la', 'i', 'le', 'un', 'una', 'e', 'è', 'di', 'a', 'in', 'che', 'non', 'per', 'con', 'su', 'mi', 'ti', 'si'},
+            'chars': {'à', 'è', 'é', 'ì', 'ò', 'ù'}
+        },
+        'de': {
+            'words': {'der', 'die', 'das', 'den', 'dem', 'des', 'ein', 'eine', 'einer', 'einem', 'einen', 'und', 'ist', 'mit', 'für', 'von', 'zu', 'dass', 'nicht'},
+            'chars': {'ä', 'ö', 'ü', 'ß'}
         }
     }
 
@@ -421,9 +429,16 @@ class ChatProcessor:
         if 'ç' in text or 'œ' in text: 
             return "fr", len(text.strip()) > 10
 
+        for char in self.LANG_MARKERS['it']['chars']:
+            if char in text:
+                return "it", len(text.strip()) > 10
+
+        for char in self.LANG_MARKERS['de']['chars']:
+            if char in text:
+                return "de", len(text.strip()) > 10
 
         # --- ШАГ 3: "Битва словарей" ---
-        scores = {'fr': 0, 'es': 0, 'en': 0}
+        scores = {'fr': 0, 'es': 0, 'en': 0, 'it': 0, 'de': 0}
 
         for word in words:
             if word in self.LANG_MARKERS['fr']['words']:
@@ -432,6 +447,10 @@ class ChatProcessor:
                 scores['es'] += 1
             elif word in self.LANG_MARKERS['en']['words']:
                 scores['en'] += 1
+            elif word in self.LANG_MARKERS['it']['words']:
+                scores['it'] += 1
+            elif word in self.LANG_MARKERS['de']['words']:
+                scores['de'] += 1
 
         best_lang = max(scores, key=scores.get)
         max_score = scores[best_lang]
@@ -447,7 +466,7 @@ class ChatProcessor:
             try:
                 langs = detect_langs(text)
                 for l in langs:
-                    if l.lang in ['fr', 'es', 'en']:
+                    if l.lang in ['fr', 'es', 'en', 'it', 'de']:
                         if l.prob > 0.9:
                             return l.lang, True
                         if l.prob > 0.7:

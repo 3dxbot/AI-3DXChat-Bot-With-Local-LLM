@@ -153,15 +153,8 @@ class ChatActionsMixin:
                 self.sending_in_progress = False
                 return
 
-            # Prepare system context and user message
-            user_input = f"{self.current_partner_nick}: {phrase}" if self.current_partner_nick else phrase
-            
-            # Use local LLM for response
-            response = await self.ui.ollama_manager.generate_response(
-                user_input,
-                system_prompt=self.global_prompt,
-                manifest=self.character_manifest
-            )
+            # Use consolidated logic
+            response = await self.get_translated_response(phrase)
 
             if response:
                 self.log(f"Received LLM response for key {key}: {response[:50]}...", internal=True)
@@ -216,16 +209,8 @@ class ChatActionsMixin:
             self.log("Activating input field for manual request...", internal=True)
             dot_task = asyncio.create_task(self._type_dot_in_game_loop())
             
-            # Prepare user prompt with nick context if available
-            user_input = f"{self.current_partner_nick}: {message}" if self.current_partner_nick else message
-            self.log(f"Sending manual request to LLM: {repr(user_input)}", internal=True)
-            
-            # Use local LLM for response
-            response = await self.ui.ollama_manager.generate_response(
-                user_input,
-                system_prompt=self.global_prompt,
-                manifest=self.character_manifest
-            )
+            # Use consolidated logic
+            response = await self.get_translated_response(message)
 
             dot_task.cancel()
             try:
@@ -278,15 +263,8 @@ class ChatActionsMixin:
         Useful for UI-only chat where game interaction is optional.
         """
         try:
-            # Prepare user prompt with nick context if available
-            user_input = f"{self.current_partner_nick}: {message}" if self.current_partner_nick else message
-            
-            self.log(f"UI Chat Request: {message[:50]}...", internal=True)
-            response = await self.ui.ollama_manager.generate_response(
-                user_input,
-                system_prompt=self.global_prompt,
-                manifest=self.character_manifest
-            )
+            # Use consolidated logic
+            response = await self.get_translated_response(message)
             return response
         except Exception as e:
             self.log(f"Error getting local chat response: {e}", internal=True)
