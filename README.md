@@ -1,6 +1,6 @@
-# ChatBot-Assistant
+# 3DXChatBot-Integration
 
-**ChatBot-Assistant** is a desktop Python application for automating chat interactions in games. It uses computer vision (OCR with pytesseract), browser automation (Playwright), and input control tools (pyautogui) to scan chat, recognize messages, and generate responses through an external service (e.g., HiWaifu).
+**3DXChatBot** is a desktop Python application for automating chat interactions in games. It uses computer vision (OCR with pytesseract), browser automation (Playwright), and input control tools (pyautogui) to scan chat, recognize messages, and generate responses through an external service (e.g., HiWaifu).
 
 The project is optimized for maximum stability, speed, and fault tolerance: asynchronous code based on asyncio, detailed error handling, state synchronization, and efficient resource usage.
 
