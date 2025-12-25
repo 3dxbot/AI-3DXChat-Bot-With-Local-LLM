@@ -1,127 +1,214 @@
-# 3DXChatBot-Integration
+# 3DXChatBot - AI-Powered Game Integration
 
-**3DXChatBot** is a desktop Python application for automating chat interactions in games. It uses computer vision (OCR with pytesseract), browser automation (Playwright), and input control tools (pyautogui) to scan chat, recognize messages, and generate responses through an external service (e.g., HiWaifu).
+**3DXChatBot** is an advanced desktop application that brings AI-powered chat interactions to your favorite games. This intelligent bot uses computer vision, local AI models, and smart automation to create a seamless gaming experience.
 
-The project is optimized for maximum stability, speed, and fault tolerance: asynchronous code based on asyncio, detailed error handling, state synchronization, and efficient resource usage.
+## 🤖 What is 3DXChatBot?
+
+3DXChatBot is your personal AI companion that:
+- **Downloads and runs local AI models** for private, offline conversations
+- **Automatically manages partnerships** in games
+- **Recognizes and responds to poses** with intelligent reactions
+- **Provides real-time translation** in 6 languages
+- **Learns and remembers** important information about your character and conversations
 
 ## 🚀 Key Features
 
-- **Automatic Chat Scanning**: The bot continuously monitors a specified screen area, recognizes text using OCR, and analyzes new messages.
-- **Nickname Management**: Support for lists of ignored and tracked nicks with fuzzy matching for reliable recognition.
-- **Response Generation**: Browser integration for sending requests to an external service (HiWaifu) and receiving responses that are then sent to the game.
-- **Flexible Responses**: Automatic message processing with action conversion to commands (/me) and sending to the game.
-- **Pose Recognition**: Automatic detection and acceptance of pose changes, with user-assisted naming for unknown poses.
-- **Intuitive GUI**: Simple Tkinter interface for managing the bot, nick lists, and logs.
-- **Hotkeys**: Quick control via F2 (start/pause scanning), F3 (hide/show UI), F4 (clear chat), and Ctrl+language (change translation language).
+### 🧠 Local AI Power
+- **No internet required** - All AI processing happens locally on your computer
+- **Privacy first** - Your conversations stay on your device
+- **Multiple model support** - Choose from various AI models optimized for different needs
+- **Character creation** - Design unique AI personalities with custom backstories and traits
 
-## 🔧 Requirements and Installation
+### 🎭 Smart Game Integration
+- **Automatic partnership management** - Accepts partnerships and handles conversations automatically
+- **Pose recognition** - Detects pose changes and reacts appropriately
+- **Unknown pose learning** - When encountering new poses, the bot asks for descriptions and learns them
+- **Smart exit** - Automatically ends partnerships when players disconnect
 
-### Requirements
-- Python 3.12+ (3.12.3 recommended for library compatibility).
-- Installed Tesseract OCR (specify path in `utils.py` or `config.py`).
-- Google Chrome (for Playwright).
-- Libraries: Install via `pip install -r requirements.txt` (create file with the following):
-  ```
-  playwright
-  pytesseract
-  pillow
-  pyautogui
-  keyboard
-  pyperclip
-  pygetwindow
-  pywin32
-  rapidfuzz  # For optimized fuzzy matching
-  numpy  # For image processing in OCR
-  opencv-python  # For image preprocessing
-  customtkinter  # For modern UI design
-  langdetect  # For automatic language detection
-  ```
+### 🌍 Multilingual Support
+- **6 languages supported**: English, Russian, French, Spanish, Italian, German
+- **Real-time translation** - Messages are translated automatically
+- **Smart language detection** - Automatically detects and switches languages
+- **AI always works in English** - Ensures best quality responses while you get replies in your language
 
-### Installation
-1. Clone the repository:
+### 💾 Advanced Memory System
+- **Character knowledge base** - Stores important information about your character
+- **Conversation memory** - Remembers key details from ongoing chats
+- **Smart summarization** - Automatically summarizes long conversations
+- **RAG technology** - Uses Retrieval-Augmented Generation for better context
+
+### 💰 Hooker Mod (Optional)
+- **Time-based billing** - Set free minutes, paid minutes, and coin requirements
+- **Automatic payment detection** - Monitors for payments and extends time
+- **Custom messages** - Personalize warning and success messages
+- **Smart timeout handling** - Automatically ends partnerships if payment isn't made
+
+## 🛠️ System Requirements
+
+### Minimum Requirements
+- **Operating System**: Windows 10/11
+- **RAM**: 16 GB
+- **Storage**: 10 GB free space
+- **Graphics**: Integrated graphics (basic models only)
+
+### Recommended Requirements
+- **Operating System**: Windows 10/11
+- **RAM**: 32 GB or more
+- **Storage**: 50 GB free space (for larger models)
+- **Graphics**: NVIDIA GPU with 8GB+ VRAM (for optimal performance)
+
+### Note
+For the best experience, we recommend having a powerful GPU with plenty of VRAM and plenty of system RAM. Larger AI models provide better responses but require more resources.
+
+## 🔧 Installation and Setup
+
+### Quick Start
+1. **Download and Install**:
    ```
-   git clone https://github.com/your-repo/ChatBot-Assistant.git
-   cd ChatBot-Assistant
-   ```
-2. Install dependencies:
-   ```
+   git clone https://github.com/your-repo/3DXChatBot.git
+   cd 3DXChatBot
    pip install -r requirements.txt
    ```
-3. Install Playwright browsers:
-   ```
-   playwright install
-   ```
-4. Configure Tesseract: Specify path in `utils.py` (e.g., `TESSERACT_PATH = r'C:\Program Files\Tesseract-OCR\tesseract.exe'`).
-5. Run the application:
+
+2. **Launch the Application**:
    ```
    python main.py
    ```
 
-## ⌨️ Controls (Hotkeys)
+3. **First-Time Setup**:
+   - The bot will guide you through setting up screen areas
+   - Configure your AI model preferences
+   - Set up character profiles
+   - Customize your settings
 
-- **F2**: Start/Pause chat scanning.
-- **F3**: Hide/Show bot window.
-- **F4**: Clear chat history in browser and bot memory.
-- **Ctrl + E**: Change language to English.
-- **Ctrl + R**: Change language to Russian.
-- **Ctrl + F**: Change language to French.
-- **Ctrl + S**: Change language to Spanish.
+### Screen Area Configuration
+The bot needs to know where to look on your screen:
+- **Chat Area**: Where game chat messages appear
+- **Input Field**: Where you type messages
+- **Partnership Area**: Where partnership requests show up
+- **Pose Area**: Where pose change notifications appear
 
-## 🎭 Pose Management
+## 🎮 How to Use
 
-The bot includes advanced pose recognition and management:
+### 1. Character Creation
+- Create unique AI personalities with custom backstories
+- Set up character traits and conversation styles
+- Build a knowledge base for your character
+- Save and load different character profiles
 
-- **Automatic Pose Detection**: Scans for pose change requests and accepts known poses automatically.
-- **Unknown Pose Handling**: When an unknown pose is detected, the bot sends a customizable message to the user asking for a description/name.
-- **User-Assisted Database Expansion**: Users can provide names for unknown poses, which are then saved to the pose database for future recognition.
-- **Language-Specific Messages**: Unknown pose messages can be customized separately for English/other languages and Russian.
-- **Pose Notifications**: After accepting poses, the bot notifies the AI service of pose changes for contextual responses.
+### 2. Game Integration
+- Launch your game
+- Start the bot
+- The bot will automatically:
+  - Monitor for partnership requests
+  - Accept partnerships when available
+  - Begin intelligent conversations
+  - React to pose changes
 
-## ⚙️ First Launch and Setup
+### 3. Pose Management
+- **Known Poses**: Bot recognizes and reacts to poses in the database
+- **Unknown Poses**: Bot asks for descriptions and learns new poses
+- **Pose Database**: Built-in collection of common poses
+- **Custom Poses**: Add your own pose descriptions
 
-On first launch, the bot is in pause mode for setup:
+### 4. Language Settings
+- **Auto-Detection**: Bot automatically detects language changes
+- **Manual Switch**: Use hotkeys to change languages
+- **Translation Layer**: All messages are translated for seamless multilingual chat
 
-1. **Browser Authorization**: Open browser, log into HiWaifu (or similar service) account.
-2. **Area Setup**:
-   - Click "Setup Areas" in UI or use F2 for step-by-step setup:
-     - Step 1: Hover over top-left chat corner → F2.
-     - Step 2: Hover over bottom-right chat corner → F2.
-     - Step 3: Click in game text input field → F2.
-3. **Game Window Name**: Specify in UI (e.g., "World of Warcraft") for focusing.
-4. **Save Settings**: Saved to `chatbot_settings.json`.
-5. **Launch**: Press F2 to start scanning.
+### 5. Hooker Mod Setup (Optional)
+- Configure free minutes and paid time
+- Set coin requirements and payment messages
+- Customize success and warning messages
+- Monitor payment status automatically
 
-## 📁 Project Structure
+## ⌨️ Hotkeys and Controls
 
-- `main.py`: Entry point, launches UI.
-- `src/ui_*.py`: Graphical interface on Tkinter/CustomTkinter.
-- `src/bot.py`: Main bot logic (scanning, processing, sending).
-- `src/browser.py`: Browser management via Playwright (HiWaifu integration).
-- `src/chat_processor.py`: Chat processing (nick recognition, fuzzy matching, message formatting).
-- `src/utils.py`: Utilities for OCR and text normalization.
-- `src/config.py`: Constants (URLs, selectors, paths).
-- `README.md`: This file.
+- **F2**: Start/Pause chat scanning
+- **F3**: Hide/Show bot window
+- **F4**: Clear chat history
+- **F5-F12**: Send preset phrases
+- **Ctrl + E**: Switch to English
+- **Ctrl + R**: Switch to Russian
+- **Ctrl + F**: Switch to French
+- **Ctrl + S**: Switch to Spanish
+- **Ctrl + I**: Switch to Italian
+- **Ctrl + G**: Switch to German
 
-## 🛠️ Optimizations and Improvements
+## 🎯 Advanced Features
 
-- **Asynchrony**: Main loop on asyncio to avoid blocking.
-- **Fault Tolerance**: Specific exception handling (TimeoutError, FileNotFoundError, etc.), automatic page reload on errors.
-- **Performance**: Optimized fuzzy matching with rapidfuzz, asynchronous browser waits.
-- **Security**: Browser sessions saved in `storage_state.json` for reuse.
-- **Logging**: Detailed logs in UI and files (`logs/`).
+### Memory Management
+The bot uses a sophisticated memory system:
+- **Short-term memory**: Remembers recent conversation details
+- **Long-term memory**: Stores important character information
+- **Automatic summarization**: Keeps conversations coherent over time
+- **Context preservation**: Maintains conversation flow
 
-## ⚠️ Important Notes
+### AI Model Management
+- **Multiple model support**: Choose from various AI models
+- **Local processing**: All AI runs on your computer
+- **Model switching**: Easily change between different models
+- **Performance optimization**: Models optimized for different hardware
 
-- **No Runtime Internet**: No package installation in runtime; all dependencies pre-installed.
-- **OCR Accuracy**: Depends on screenshot quality; configure language in `utils.py` (e.g., 'rus+eng').
-- **License**: MIT (or specify your own).
-- **Limitations**: Works only on Windows (due to pywin32 and win32gui); adapt for other OS.
+### Customization Options
+- **Character profiles**: Create and save different AI personalities
+- **Response styles**: Customize how the bot responds
+- **Memory settings**: Control how much the bot remembers
+- **Language preferences**: Set default languages and translation options
 
-## 🤝 Contributing
+## 🛡️ Privacy and Security
 
-PRs for improvements welcome! If you find a bug, create an issue.
+- **Local processing**: All data stays on your computer
+- **No cloud dependencies**: Works completely offline
+- **Secure storage**: Character and conversation data is encrypted
+- **No data collection**: We don't collect or store your conversations
 
-## 📧 Contacts
+## 🤝 Support and Community
 
-- Author: [Your Name or GitHub]
-- Email: anonymicus.anon@gmail.com (from code example)
+### Getting Help
+- **Documentation**: Comprehensive guides and tutorials
+- **Video tutorials**: Step-by-step setup and usage videos
+- **Community forum**: Connect with other users
+- **Email support**: Direct support from the development team
+
+### Contact Information
+- **Email**: 3dxbot@gmail.com
+- **Discord**: [Link to Discord server]
+- **GitHub**: [Link to GitHub repository]
+
+### Contributing
+We welcome contributions from the community:
+- Bug reports and feature requests
+- Code contributions and improvements
+- Documentation and translation help
+- Testing and feedback
+
+## 📋 Troubleshooting
+
+### Common Issues
+1. **AI model not loading**: Check your GPU drivers and available VRAM
+2. **Pose recognition not working**: Ensure proper screen area configuration
+3. **Translation issues**: Verify language settings and OCR accuracy
+4. **Performance problems**: Try using smaller AI models or reducing memory usage
+
+### Performance Tips
+- Use SSD storage for faster model loading
+- Close other applications to free up RAM
+- Update your GPU drivers for better performance
+- Start with smaller models if you have limited hardware
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 🙏 Acknowledgments
+
+- The open-source AI community for making local AI possible
+- Contributors and testers who helped improve the bot
+- The gaming community for inspiring this project
+
+---
+
+**3DXChatBot** - Bringing intelligent companionship to your gaming world!
+
+*Created with ❤️ by 3DXChatBot*
