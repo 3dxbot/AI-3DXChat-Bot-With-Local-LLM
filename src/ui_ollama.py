@@ -754,7 +754,7 @@ class OllamaUI:
     
     def _on_stop_click(self):
         """Handle stop button click (legacy/other)."""
-        threading.Thread(target=self.ollama_manager.stop_service).start()
+        pass
     
     def _on_restart_click(self):
         """Handle restart button click (legacy/other)."""

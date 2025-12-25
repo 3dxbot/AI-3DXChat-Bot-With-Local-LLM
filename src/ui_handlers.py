@@ -44,8 +44,14 @@ class UIHandlersMixin:
 
         Starts the bot if it exists and is not already running.
         """
-        if self.bot:
-            self.bot.start_bot()
+        if hasattr(self, 'ollama_manager') and hasattr(self, 'status_manager'):
+            status = self.status_manager.get_ollama_status()
+            if status == "Running":
+                import threading
+                threading.Thread(target=self.ollama_manager.stop_service, daemon=True).start()
+            else:
+                import threading
+                threading.Thread(target=self.ollama_manager.start_service, daemon=True).start()
 
     def on_pause_click(self):
         """
@@ -60,12 +66,9 @@ class UIHandlersMixin:
 
     def on_stop_click(self):
         """
-        Handle stop button click.
-
-        Stops the bot if it exists and is running.
+        Legacy handler for stop button (removed).
         """
-        if self.bot:
-            self.bot.stop_bot()
+        pass
 
     def update_buttons_state(self, running, paused=False):
         """
@@ -81,16 +84,18 @@ class UIHandlersMixin:
         from .ui_styles import UIStyles
         
         # Start button - Success green when available
-        self.start_button.configure(
-            state="disabled" if running else "normal", 
-            fg_color=UIStyles.DISABLED_COLOR if running else UIStyles.SUCCESS_COLOR
-        )
+        # Start button - Handled via Ollama status callback (_on_ollama_status_changed in ui_main.py)
+        # We comment out the standard state management to let the callback handle it exclusively
+        # self.start_button.configure(
+        #    state="disabled" if running else "normal", 
+        #    fg_color=UIStyles.DISABLED_COLOR if running else UIStyles.SUCCESS_COLOR
+        # )
         
-        # Stop button - Error red when running
-        self.stop_button.configure(
-            state="normal" if running else "disabled", 
-            fg_color=UIStyles.ERROR_COLOR if running else UIStyles.DISABLED_COLOR
-        )
+        # Stop button REMOVED - functionality merged with Ollama control
+        # self.stop_button.configure(
+        #    state="normal" if running else "disabled", 
+        #    fg_color=UIStyles.ERROR_COLOR if running else UIStyles.DISABLED_COLOR
+        # )
         
         # Action buttons - Primary blue when running
         btn_state = "normal" if running else "disabled"
@@ -102,9 +107,9 @@ class UIHandlersMixin:
         if running:
             # Pause button - Warning amber when running
             self.pause_button.configure(state="normal", fg_color=UIStyles.WARNING_COLOR)
-            self.pause_button.configure(text="Pause" if not paused else "Resume")
+            self.pause_button.configure(text="Pause Scan" if not paused else "Start Scan")
         else:
-            self.pause_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, text="Pause")
+            self.pause_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, text="Start Scan")
 
     def on_set_hiwaifu_language(self):
         """

@@ -334,7 +334,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         Stop the bot.
 
         Stops all bot operations, destroys overlay, clears memory,
-        closes browser, and updates UI status.
+        and updates UI status.
         """
         if not self.bot_running:
             return

@@ -94,9 +94,8 @@ class UIInitMixin:
 
         # Buttons - calm neutral colors
         btn_height = 36
-        self.start_button = UIStyles.create_button(self.header_frame, text="Start", command=self.on_start_click, fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669", height=btn_height)
-        self.pause_button = UIStyles.create_secondary_button(self.header_frame, text="Pause", command=self.on_pause_click, state=tk.DISABLED, height=btn_height)
-        self.stop_button = UIStyles.create_secondary_button(self.header_frame, text="Stop", command=self.on_stop_click, state=tk.DISABLED, height=btn_height)
+        self.start_button = UIStyles.create_button(self.header_frame, text="Start Ollama", command=self.on_start_click, fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669", height=btn_height)
+        self.pause_button = UIStyles.create_secondary_button(self.header_frame, text="Start Scan", command=self.on_pause_click, state=tk.DISABLED, height=btn_height)
         self.clear_chat_button = UIStyles.create_secondary_button(self.header_frame, text="Clear Chat", command=self.on_clear_chat_click, state=tk.DISABLED, height=btn_height)
         self.close_partnership_button = UIStyles.create_secondary_button(self.header_frame, text="Close Partn", command=self.on_close_partnership_click, state=tk.DISABLED, height=btn_height)
 
@@ -814,7 +813,7 @@ Note: This feature is under development."""
         """
         Adaptive grid layout for header buttons based on window width.
 
-        Dynamically rearranges the 5 control buttons (start, pause, stop,
+        Dynamically rearranges the 4 control buttons (start ollama, start/pause scan,
         clear chat, close partnership) into different grid configurations
         based on available window width for optimal usability.
         """
@@ -823,41 +822,22 @@ Note: This feature is under development."""
             widget.grid_forget()
 
         width = self.root.winfo_width() - 180  # Subtract sidebar width
-        buttons = [self.start_button, self.pause_button, self.stop_button, self.clear_chat_button, self.close_partnership_button]
+        buttons = [self.start_button, self.pause_button, self.clear_chat_button, self.close_partnership_button]
 
-        if width > 1200:
-            # 1 row, 5 columns
-            for i in range(5):
+        if width > 1000:
+            # 1 row, 4 columns
+            for i in range(4):
                 self.header_frame.columnconfigure(i, weight=1)
             for i, btn in enumerate(buttons):
                 btn.grid(row=0, column=i, padx=5, pady=5, sticky='ew')
-        elif width > 800:
-            # 2 rows: 3 in first, 2 in second
-            for i in range(3):
-                self.header_frame.columnconfigure(i, weight=1)
-            for i in range(3):
-                buttons[i].grid(row=0, column=i, padx=5, pady=5, sticky='ew')
-            for i in range(2):
-                buttons[i+3].grid(row=1, column=i, padx=5, pady=5, sticky='ew')
-        elif width > 500:
-            # 2 rows: 3, 2
-            for i in range(3):
-                self.header_frame.columnconfigure(i, weight=1)
-            for i in range(3):
-                buttons[i].grid(row=0, column=i, padx=5, pady=5, sticky='ew')
-            for i in range(2):
-                buttons[i+3].grid(row=1, column=i, padx=5, pady=5, sticky='ew')
-        elif width > 300:
-            # 3 rows, 2 columns: 2,2,1
+        elif width > 600:
+            # 2 rows, 2 columns
             for i in range(2):
                 self.header_frame.columnconfigure(i, weight=1)
-            for i in range(2):
-                buttons[i].grid(row=0, column=i, padx=5, pady=5, sticky='ew')
-            for i in range(2):
-                buttons[i+2].grid(row=1, column=i, padx=5, pady=5, sticky='ew')
-            buttons[4].grid(row=2, column=0, padx=5, pady=5, sticky='ew')
+            for i, btn in enumerate(buttons):
+                btn.grid(row=i // 2, column=i % 2, padx=5, pady=5, sticky='ew')
         else:
-            # 5 rows, 1 column
+            # 4 rows, 1 column
             self.header_frame.columnconfigure(0, weight=1)
             for i, btn in enumerate(buttons):
                 btn.grid(row=i, column=0, padx=5, pady=5, sticky='ew')

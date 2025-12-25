@@ -190,12 +190,36 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
             if new_status == "Running":
                 self.root.after(0, lambda: self.start_button.configure(
                     state="normal", 
+                    text="Stop Ollama",
+                    fg_color=UIStyles.SECONDARY_COLOR, 
+                    hover_color=UIStyles.ERROR_COLOR
+                ))
+                # Automatically start bot when Ollama is running
+                if self.bot and not self.bot.bot_running:
+                    self.bot.start_bot()
+            elif new_status == "Stopped" or new_status == "Error":
+                self.root.after(0, lambda: self.start_button.configure(
+                    state="normal", 
+                    text="Start Ollama",
                     fg_color=UIStyles.SUCCESS_COLOR, 
                     hover_color="#059669"
                 ))
-            else:
+                # Automatically stop bot when Ollama is not running
+                if self.bot and self.bot.bot_running:
+                    self.bot.stop_bot()
+            elif new_status == "Not Installed":
                 self.root.after(0, lambda: self.start_button.configure(
                     state="disabled", 
+                    text="Start Ollama",
+                    fg_color=UIStyles.DISABLED_COLOR, 
+                    hover_color=UIStyles.DISABLED_COLOR
+                ))
+                if self.bot and self.bot.bot_running:
+                    self.bot.stop_bot()
+            else: # Starting, Stopping, Checking, etc.
+                self.root.after(0, lambda: self.start_button.configure(
+                    state="disabled", 
+                    text="..." if new_status in ["Starting", "Stopping"] else "Start Ollama",
                     fg_color=UIStyles.DISABLED_COLOR, 
                     hover_color=UIStyles.DISABLED_COLOR
                 ))
