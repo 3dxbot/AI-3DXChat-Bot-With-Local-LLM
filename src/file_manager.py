@@ -59,9 +59,68 @@ class FileManager:
             self.temp_dir.mkdir(parents=True, exist_ok=True)
             
             self.logger.info(f"Created Ollama directories: {self.ollama_dir}")
+            
+            # Run migration after creating directories
+            self.migrate_existing_models()
+            
         except Exception as e:
             self.logger.error(f"Error creating directories: {e}")
             raise
+    
+    def migrate_existing_models(self):
+        """
+        Migrate existing models from old structure to new separate folder structure.
+        
+        This ensures compatibility with existing installations.
+        """
+        try:
+            # Import model path functions from config
+            from .config import get_model_folder_path
+            
+            if not self.models_dir.exists():
+                self.logger.info("No existing models directory found, skipping migration")
+                return
+            
+            # Check if we're already using the new structure
+            existing_folders = [d for d in self.models_dir.iterdir() if d.is_dir()]
+            if existing_folders and any(d.name in ['blobs', 'config'] for d in existing_folders):
+                self.logger.info("Found old model structure, starting migration...")
+                
+                # Find models in the old structure (blobs directory)
+                blobs_dir = self.models_dir / "blobs"
+                if blobs_dir.exists():
+                    # List all model files in blobs
+                    model_files = [f for f in blobs_dir.iterdir() if f.is_file() and f.name.startswith('sha256-')]
+                    
+                    if model_files:
+                        self.logger.info(f"Found {len(model_files)} model files to migrate")
+                        
+                        # Create a default model folder for old models
+                        default_model_folder = get_model_folder_path("default")
+                        default_model_folder.mkdir(parents=True, exist_ok=True)
+                        
+                        # Move blobs to the default model folder
+                        default_blobs = default_model_folder / "blobs"
+                        default_blobs.mkdir(exist_ok=True)
+                        
+                        for model_file in model_files:
+                            try:
+                                target_path = default_blobs / model_file.name
+                                model_file.rename(target_path)
+                                self.logger.debug(f"Migrated {model_file.name} to {target_path}")
+                            except Exception as e:
+                                self.logger.warning(f"Failed to migrate {model_file.name}: {e}")
+                        
+                        self.logger.info("Migration completed. Old models are now in 'default' folder.")
+                    else:
+                        self.logger.info("No model files found in old structure")
+                else:
+                    self.logger.info("No old blobs directory found")
+            else:
+                self.logger.info("Already using new model folder structure")
+                
+        except Exception as e:
+            self.logger.error(f"Error during model migration: {e}")
     
     def get_ollama_path(self) -> Path:
         """Get path to Ollama executable."""

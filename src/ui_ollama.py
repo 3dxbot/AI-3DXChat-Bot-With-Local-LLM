@@ -35,7 +35,7 @@ class OllamaUI:
         download_manager: DownloadManager instance.
     """
     
-    def __init__(self, parent, ollama_manager: OllamaManager, status_manager: StatusManager, 
+    def __init__(self, parent, ollama_manager: OllamaManager, status_manager: StatusManager,
                  file_manager: FileManager, download_manager: DownloadManager):
         """
         Initialize OllamaUI.
@@ -52,6 +52,10 @@ class OllamaUI:
         self.status_manager = status_manager
         self.file_manager = file_manager
         self.download_manager = download_manager
+        
+        # Enhanced download progress tracking
+        self.model_progress_details = None
+        self.model_progress_text = None
         
         # UI components
         self.status_label = None
@@ -442,6 +446,15 @@ class OllamaUI:
         self.model_progress_bar = ctk.CTkProgressBar(self.model_progress_frame, height=10, progress_color=UIStyles.PRIMARY_COLOR)
         self.model_progress_bar.pack(fill='x')
         self.model_progress_bar.set(0)
+        
+        # Enhanced progress details
+        self.model_progress_details = ctk.CTkLabel(
+            self.model_progress_frame,
+            text="Status: Waiting for manifest...",
+            font=UIStyles.FONT_SMALL,
+            text_color=UIStyles.TEXT_TERTIARY
+        )
+        self.model_progress_details.pack(anchor='w', pady=(5, 0))
 
         # Trigger initial model list refresh if running
         if self.status_manager.get_ollama_status() == "Running":
@@ -706,6 +719,24 @@ class OllamaUI:
                 print(f"Error refreshing model list: {e}")
 
         threading.Thread(target=update, daemon=True).start()
+    
+    def _show_partial_download_info(self, model_name: str):
+        """Show information about partial download for a model."""
+        try:
+            progress = self.ollama_manager.get_model_download_progress(model_name)
+            
+            if progress['has_partial']:
+                message = f"Model '{model_name}' has partial download:\n\n"
+                message += f"Status: {progress['status']}\n"
+                message += f"Downloaded: {self.format_bytes(progress['partial_size'])}\n"
+                message += f"Can Resume: {'Yes' if progress['can_resume'] else 'No'}\n"
+                message += f"Manifest Available: {'Yes' if progress['manifest_available'] else 'No'}\n\n"
+                message += "The system will automatically clean up partial files before starting a new download."
+                
+                self.parent.after(0, lambda: tk.messagebox.showinfo("Partial Download Detected", message))
+                
+        except Exception as e:
+            self.logger.error(f"Error showing partial download info: {e}")
 
     def _update_dropdown_items(self, model_names: list):
         """Update model dropdown items safely."""
@@ -799,7 +830,7 @@ class OllamaUI:
         threading.Thread(target=self.ollama_manager.delete_ollama).start()
     
     def _on_download_model_click(self):
-        """Handle model download button click."""
+        """Handle model download button click with enhanced progress tracking."""
         if hasattr(self, 'model_input') and self.model_input:
             model_name = self.model_input.get().strip()
             if model_name:
@@ -807,18 +838,53 @@ class OllamaUI:
                 self.model_progress_bar.set(0)
                 self.model_progress_label.configure(text="0%")
                 self.model_progress_title.configure(text=f"Downloading {model_name}...")
+                self.model_progress_details.configure(text="Status: Waiting for manifest...")
 
                 def progress_callback(status, total, completed):
-                    if total > 0:
-                        progress = completed / total
+                    if total > 0 and completed >= 0:
+                        progress = min(1.0, max(0.0, completed / total))
                         size_info = f"{self.format_bytes(completed)} / {self.format_bytes(total)}"
                         self.parent.after(0, lambda: self.model_progress_bar.set(progress))
                         self.parent.after(0, lambda: self.model_progress_label.configure(text=f"{int(progress * 100)}% ({size_info})"))
+                        
+                        # Update detailed status
+                        if status == "pulling manifest":
+                            self.parent.after(0, lambda: self.model_progress_details.configure(
+                                text="Status: Pulling manifest from Ollama registry...",
+                                text_color=UIStyles.TEXT_SECONDARY
+                            ))
+                        elif status == "downloading":
+                            self.parent.after(0, lambda: self.model_progress_details.configure(
+                                text=f"Status: Downloading model layers...",
+                                text_color=UIStyles.TEXT_SECONDARY
+                            ))
+                        elif status == "writing manifest":
+                            self.parent.after(0, lambda: self.model_progress_details.configure(
+                                text="Status: Writing model manifest...",
+                                text_color=UIStyles.TEXT_SECONDARY
+                            ))
+                        elif status == "verifying sha256 digest":
+                            self.parent.after(0, lambda: self.model_progress_details.configure(
+                                text="Status: Verifying download integrity...",
+                                text_color=UIStyles.TEXT_SECONDARY
+                            ))
+                    else:
+                        # Handle cases where total is 0 or completed is negative
+                        self.parent.after(0, lambda: self.model_progress_label.configure(text=f"Status: {status}"))
+                        self.parent.after(0, lambda: self.model_progress_details.configure(
+                            text=f"Status: {status}",
+                            text_color=UIStyles.TEXT_SECONDARY
+                        ))
 
                 def complete_callback(success, error_message=None):
                     self.parent.after(2000, lambda: self.model_progress_frame.pack_forget())
                     if success:
                         self.parent.after(0, self._refresh_model_list)
+                        # Show success message with model info
+                        self.parent.after(0, lambda: tk.messagebox.showinfo(
+                            "Download Complete",
+                            f"Model '{model_name}' downloaded successfully!"
+                        ))
                     elif error_message:
                         self.parent.after(0, lambda: tk.messagebox.showerror("Download Error", error_message))
 

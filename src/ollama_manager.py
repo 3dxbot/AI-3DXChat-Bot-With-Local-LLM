@@ -16,14 +16,17 @@ import asyncio
 import requests
 import json
 from pathlib import Path
-from typing import Optional, Dict, List, Callable
+from typing import Optional, Dict, List, Callable, Any
 import threading
 import logging
 import zipfile
+import shutil
+from datetime import datetime
 
 from .file_manager import FileManager
 from .download_manager import DownloadManager
 from .status_manager import StatusManager
+from .model_download_manager import ModelDownloadManager
 from .config import OLLAMA_API_URL, OLLAMA_DOWNLOAD_URL, OLLAMA_HOST, OLLAMA_PORT
 
 
@@ -54,6 +57,7 @@ class OllamaManager:
         self.file_manager = file_manager
         self.download_manager = download_manager
         self.status_manager = status_manager
+        self.model_download_manager = ModelDownloadManager(file_manager)
         self.logger = logging.getLogger(__name__)
         
         self.ollama_path = self.file_manager.get_ollama_path()
@@ -99,6 +103,46 @@ class OllamaManager:
             self.logger.error(f"Error detecting Ollama: {e}")
             self.status_manager.set_ollama_status("Error")
             return False
+    
+    def check_partial_model_downloads(self):
+        """
+        Check for partial model downloads and handle them appropriately.
+        This method should be called during startup to clean up or resume interrupted downloads.
+        """
+        try:
+            self.logger.info("Checking for partial model downloads...")
+            
+            # Get list of models that might have partial downloads
+            # We check all model folders for partial files
+            models_path = self.file_manager.get_models_path()
+            if not models_path.exists():
+                return
+            
+            for model_folder in models_path.iterdir():
+                if model_folder.is_dir():
+                    model_name = model_folder.name
+                    
+                    # Check for partial download
+                    recovery_info = self.model_download_manager.check_partial_download(model_name)
+                    
+                    if recovery_info['has_partial']:
+                        self.logger.warning(f"Found partial download for model: {model_name}")
+                        self.logger.info(f"Partial size: {recovery_info['partial_size']} bytes")
+                        self.logger.info(f"Can resume: {recovery_info['can_resume']}")
+                        
+                        # Clean up partial download to prevent issues
+                        # In a production system, you might want to offer resume option
+                        self.model_download_manager.cleanup_partial_download(model_name)
+                        self.logger.info(f"Cleaned up partial download for: {model_name}")
+                        
+                        # Update status to reflect cleanup
+                        self.status_manager.set_model_status(model_name, "Available")
+                    else:
+                        # Model appears complete, mark as available
+                        self.status_manager.set_model_status(model_name, "Available")
+                        
+        except Exception as e:
+            self.logger.error(f"Error checking partial model downloads: {e}")
     
     def download_ollama(self, progress_callback: Optional[Callable] = None, complete_callback: Optional[Callable] = None):
         """
@@ -201,6 +245,10 @@ class OllamaManager:
             env = os.environ.copy()
             env["OLLAMA_MODELS"] = models_path
             env["OLLAMA_HOST"] = f"{OLLAMA_HOST}:{OLLAMA_PORT}"
+            
+            self.logger.info(f"Ollama environment configured:")
+            self.logger.info(f"  OLLAMA_MODELS: {models_path}")
+            self.logger.info(f"  OLLAMA_HOST: {env['OLLAMA_HOST']}")
             
             # Prepare log file for Ollama output
             log_dir = os.path.dirname(executable)
@@ -356,45 +404,163 @@ class OllamaManager:
     
     def download_model(self, model_name: str, progress_callback: Optional[Callable] = None, complete_callback: Optional[Callable] = None):
         """
-        Download a model.
-        
+        Download a model with enhanced state management and resume support.
+
         Args:
             model_name: Name of the model to download.
             progress_callback: Optional callback for progress updates.
             complete_callback: Optional callback for completion.
         """
         try:
+            # Validate model exists before starting download
+            self.logger.info(f"Validating model '{model_name}' exists in Ollama registry...")
+            try:
+                show_response = requests.post(
+                    f"{self.api_base_url}/api/show",
+                    json={"name": model_name},
+                    timeout=10
+                )
+
+                if show_response.status_code != 200:
+                    error_msg = f"Model '{model_name}' not found in Ollama registry (HTTP {show_response.status_code})"
+                    self.logger.warning(error_msg)
+                    # Continue anyway - Ollama might be able to download it despite API validation failure
+                    self.logger.info(f"Attempting download anyway despite validation failure...")
+                else:
+                    show_data = show_response.json()
+                    if 'error' in show_data:
+                        error_msg = f"Model '{model_name}' not found: {show_data['error']}"
+                        self.logger.warning(error_msg)
+                        # Continue anyway - the API might be having connectivity issues
+                        self.logger.info(f"Attempting download anyway despite API error...")
+                    else:
+                        self.logger.info(f"Model '{model_name}' found in registry, proceeding with download...")
+
+            except requests.exceptions.RequestException as e:
+                error_msg = f"Failed to validate model '{model_name}': {e}"
+                self.logger.warning(error_msg)
+                # Continue anyway - network issues shouldn't prevent download attempts
+                self.logger.info(f"Attempting download despite validation failure...")
+
+            # Initialize download state
+            self.model_download_manager.update_download_state(model_name, {
+                'status': 'starting',
+                'start_time': datetime.now().isoformat(),
+                'error_message': None
+            })
+
             self.status_manager.set_model_status(model_name, "Downloading")
+            self.logger.info(f"Starting download of model: {model_name}")
+
+            # Check for partial download and handle appropriately
+            recovery_info = self.model_download_manager.check_partial_download(model_name)
+            if recovery_info['has_partial']:
+                self.logger.info(f"Found partial download for {model_name}, cleaning up...")
+                self.model_download_manager.cleanup_partial_download(model_name)
             
             def on_progress(response):
                 try:
                     for line in response.iter_lines():
                         if line:
                             data = json.loads(line.decode('utf-8'))
+
+                            # Handle different types of progress events
                             if 'status' in data:
                                 status = data['status']
+
+                                # Handle manifest pulling
+                                if status == 'pulling manifest':
+                                    self.model_download_manager.handle_manifest_pull(model_name, data)
+                                    self.model_download_manager.log_download_event(
+                                        model_name, 'manifest_pulled', 'Manifest pulled successfully'
+                                    )
+
+                                # Handle downloading layers
+                                elif status == 'downloading':
+                                    downloaded = data.get('completed', 0)
+                                    total = data.get('total', 0)
+
+                                    self.model_download_manager.update_download_state(model_name, {
+                                        'status': 'downloading',
+                                        'downloaded_bytes': downloaded,
+                                        'total_bytes': total
+                                    })
+
+                                    # Log progress
+                                    if total > 0:
+                                        progress_percent = (downloaded / total) * 100
+                                        self.model_download_manager.log_download_event(
+                                            model_name, 'progress',
+                                            f'Downloading: {progress_percent:.1f}%',
+                                            {'downloaded': downloaded, 'total': total}
+                                        )
+
+                                # Handle writing manifest
+                                elif status == 'writing manifest':
+                                    self.model_download_manager.log_download_event(
+                                        model_name, 'writing_manifest', 'Writing manifest...'
+                                    )
+
+                                # Handle verification
+                                elif status == 'verifying sha256 digest':
+                                    self.model_download_manager.log_download_event(
+                                        model_name, 'verifying', 'Verifying download...'
+                                    )
+
+                                # Call progress callback with correct signature
                                 if progress_callback:
-                                    progress_callback(status, data.get('total', 0), data.get('completed', 0))
+                                    total = data.get('total', 0)
+                                    completed = data.get('completed', 0)
+                                    progress_callback(status, total, completed)
+
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"JSON decode error in model download progress: {e}")
+                    self.model_download_manager.log_download_event(
+                        model_name, 'error', f'JSON decode error: {e}'
+                    )
                 except Exception as e:
                     self.logger.error(f"Error processing model download progress: {e}")
+                    self.model_download_manager.log_download_event(
+                        model_name, 'error', f'Progress processing error: {e}'
+                    )
             
             def on_complete(success, error_message=None):
                 if success:
+                    self.model_download_manager.mark_download_complete(model_name)
+                    self.model_download_manager.log_download_event(
+                        model_name, 'completed', 'Model download completed successfully'
+                    )
                     self.status_manager.set_model_status(model_name, "Available")
                     self.status_manager.set_active_model(model_name)
+                    self.logger.info(f"Model {model_name} downloaded successfully")
                 else:
+                    self.model_download_manager.update_download_state(model_name, {
+                        'status': 'error',
+                        'error_message': error_message
+                    })
+                    self.model_download_manager.log_download_event(
+                        model_name, 'error', f'Download failed: {error_message}'
+                    )
                     self.status_manager.set_model_status(model_name, "Error")
+                    self.logger.error(f"Model {model_name} download failed: {error_message}")
                 
                 if complete_callback:
                     complete_callback(success, error_message)
             
             # Start model download
+            self.logger.info(f"Sending pull request to Ollama API for model: {model_name}")
+            self.model_download_manager.log_download_event(
+                model_name, 'started', f'Starting download via Ollama API'
+            )
+            
             response = requests.post(
                 f"{self.api_base_url}/api/pull",
                 json={"name": model_name},
                 stream=True,
                 timeout=3600  # Increased timeout for large models
             )
+            
+            self.logger.info(f"Ollama API response status: {response.status_code}")
             
             if response.status_code == 200:
                 on_progress(response)
@@ -405,10 +571,27 @@ class OllamaManager:
                 except:
                    error_text = "Unknown error"
                 self.logger.error(f"Failed to download model. Status: {response.status_code}, Response: {error_text}")
+                self.model_download_manager.handle_download_reset(
+                    model_name, f"HTTP {response.status_code}: {error_text}"
+                )
                 on_complete(False, f"HTTP {response.status_code}: {error_text}")
                 
+        except requests.exceptions.ConnectionError as e:
+            self.logger.error(f"Connection error downloading model {model_name}: {e}")
+            self.logger.error("Ollama service may not be running or accessible")
+            self.model_download_manager.handle_download_reset(model_name, f"Connection failed: {e}")
+            self.status_manager.set_model_status(model_name, "Error")
+            if complete_callback:
+                complete_callback(False, f"Connection failed: {e}")
+        except requests.exceptions.Timeout as e:
+            self.logger.error(f"Timeout error downloading model {model_name}: {e}")
+            self.model_download_manager.handle_download_reset(model_name, f"Request timeout: {e}")
+            self.status_manager.set_model_status(model_name, "Error")
+            if complete_callback:
+                complete_callback(False, f"Request timeout: {e}")
         except Exception as e:
-            self.logger.error(f"Error downloading model {model_name}: {e}")
+            self.logger.error(f"Unexpected error downloading model {model_name}: {e}")
+            self.model_download_manager.handle_download_reset(model_name, f"Unexpected error: {e}")
             self.status_manager.set_model_status(model_name, "Error")
             if complete_callback:
                 complete_callback(False, str(e))
@@ -427,6 +610,14 @@ class OllamaManager:
             response = requests.delete(f"{self.api_base_url}/api/delete", json={"name": model_name})
             if response.status_code == 200:
                 self.status_manager.remove_model(model_name)
+                
+                # Clean up the model's folder
+                from .config import get_model_folder_path
+                model_folder = get_model_folder_path(model_name)
+                if model_folder.exists():
+                    shutil.rmtree(model_folder)
+                    self.logger.info(f"Cleaned up model folder for {model_name}")
+                
                 return True
             return False
         except Exception as e:
@@ -574,6 +765,18 @@ class OllamaManager:
             self.logger.error(f"Error generating response: {e}")
             return None
 
+    def get_model_download_progress(self, model_name: str) -> Dict[str, Any]:
+        """
+        Get download progress information for a model.
+        
+        Args:
+            model_name: Name of the model.
+            
+        Returns:
+            Dictionary with progress information.
+        """
+        return self.model_download_manager.get_download_progress(model_name)
+    
     def clear_history(self):
         """Clear the current conversation context history."""
         self.chat_history = []

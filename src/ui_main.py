@@ -127,6 +127,9 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         # Start Ollama detection in background
         import threading
         threading.Thread(target=self.ollama_manager.detect_ollama, daemon=True).start()
+        
+        # Check for partial model downloads and clean them up
+        threading.Thread(target=self.ollama_manager.check_partial_model_downloads, daemon=True).start()
 
         # Check keyboard layout and warn if not English
         self._check_keyboard_layout()

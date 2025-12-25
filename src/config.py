@@ -112,3 +112,44 @@ FRANCE_TRANSLATE_LANG = "//div[contains(@class, 'font-box') and contains(text(),
 # Chat menu
 CHAT_MENU = ".Chat-box"
 FIRST_CHAT = "(//div[contains(@class, 'robot-box show-box')])[1]"
+
+# Model folder management
+def get_model_folder_path(model_name: str) -> str:
+    """
+    Generate path for a specific model's folder.
+    
+    Args:
+        model_name: Name of the model (e.g., "llama2", "mistral")
+        
+    Returns:
+        Path to the model's dedicated folder
+    """
+    # Clean model name for folder creation
+    safe_model_name = model_name.replace(':', '_').replace('/', '_').replace('\\', '_')
+    return os.path.join(OLLAMA_MODELS_DIR, safe_model_name)
+
+def get_model_blob_path(model_name: str) -> str:
+    """
+    Generate path for model blobs within the model's folder.
+    
+    Args:
+        model_name: Name of the model
+        
+    Returns:
+        Path to the model's blob storage
+    """
+    model_folder = get_model_folder_path(model_name)
+    return os.path.join(model_folder, "blobs")
+
+def get_model_config_path(model_name: str) -> str:
+    """
+    Generate path for model configuration within the model's folder.
+    
+    Args:
+        model_name: Name of the model
+        
+    Returns:
+        Path to the model's configuration storage
+    """
+    model_folder = get_model_folder_path(model_name)
+    return os.path.join(model_folder, "config")
