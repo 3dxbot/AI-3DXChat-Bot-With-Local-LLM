@@ -100,6 +100,9 @@ HOTKEY_PHRASES_FILE = os.path.join(BASE_DIR, 'config', 'hotkey_phrases.json')
 # File for saving browser state (cookies and sessions)
 STORAGE_STATE_FILE = os.path.join(BASE_DIR, 'config', 'storage_state.json')
 
+# Directory for character profiles
+CHARACTERS_DIR = os.path.join(BASE_DIR, 'config', 'characters')
+
 # Chat history reset
 RIGHT_UP_ARROW = ".expand-box"
 SAVE_AND_START_NEW_CHAT = "//span[text()='Save and Start New Chat']"

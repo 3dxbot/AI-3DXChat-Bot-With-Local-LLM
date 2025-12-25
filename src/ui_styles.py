@@ -143,126 +143,74 @@ class UIStyles:
         root.configure(fg_color=UIStyles.APP_BG)
     
     @staticmethod
-    def create_button(parent, text, command, fg_color=None, hover_color=None, 
-                     width=120, height=36, **kwargs):
+    def create_button(parent, text, command, fg_color=None, hover_color=None, width=160, height=40, **kwargs):
         """
-        Create a premium styled primary button with gradient-ready colors.
-        
-        Args:
-            parent: Parent widget
-            text: Button text
-            command: Button command
-            fg_color: Button background color (default: PRIMARY_COLOR)
-            hover_color: Hover state color (default: PRIMARY_HOVER)
-            width: Button width
-            height: Button height
-            **kwargs: Additional CTkButton arguments
-            
-        Returns:
-            CTkButton: Styled button instance
+        Create a primary action button with premium styling.
         """
-        if fg_color is None:
-            fg_color = UIStyles.PRIMARY_COLOR
-        if hover_color is None:
-            hover_color = UIStyles.PRIMARY_HOVER
-        
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            fg_color=fg_color,
-            hover_color=hover_color,
-            width=width,
-            height=height,
-            corner_radius=UIStyles.RADIUS_MD,
-            text_color=UIStyles.TEXT_PRIMARY,
-            text_color_disabled=UIStyles.TEXT_SECONDARY,
-            font=UIStyles.FONT_BUTTON,
-            border_width=0,
-            **kwargs
-        )
+        defaults = {
+            "text": text,
+            "command": command,
+            "fg_color": fg_color or UIStyles.PRIMARY_COLOR,
+            "hover_color": hover_color or UIStyles.PRIMARY_HOVER,
+            "width": width,
+            "height": height,
+            "corner_radius": UIStyles.RADIUS_MD,
+            "text_color": UIStyles.TEXT_PRIMARY,
+            "text_color_disabled": UIStyles.TEXT_SECONDARY,
+            "font": UIStyles.FONT_BUTTON,
+            "border_width": 0,
+        }
+        return ctk.CTkButton(parent, **{**defaults, **kwargs})
     
     @staticmethod
     def create_secondary_button(parent, text, command, width=120, height=36, **kwargs):
         """
         Create a secondary/neutral button with subtle styling.
-        
-        Args:
-            parent: Parent widget
-            text: Button text
-            command: Button command
-            width: Button width
-            height: Button height
-            **kwargs: Additional CTkButton arguments
-            
-        Returns:
-            CTkButton: Styled secondary button
         """
-        border_width = kwargs.pop('border_width', 1)
-        fg_color = kwargs.pop('fg_color', UIStyles.SECONDARY_COLOR)
-        hover_color = kwargs.pop('hover_color', UIStyles.DISABLED_COLOR)
-        
-        return ctk.CTkButton(
-            parent,
-            text=text,
-            command=command,
-            fg_color=fg_color,
-            hover_color=hover_color,
-            width=width,
-            height=height,
-            corner_radius=UIStyles.RADIUS_MD,
-            text_color=UIStyles.TEXT_PRIMARY,
-            text_color_disabled=UIStyles.TEXT_SECONDARY,
-            font=UIStyles.FONT_BUTTON,
-            border_width=border_width,
-            border_color=UIStyles.BORDER_COLOR,
-            **kwargs
-        )
+        defaults = {
+            "text": text,
+            "command": command,
+            "fg_color": UIStyles.SECONDARY_COLOR,
+            "hover_color": UIStyles.DISABLED_COLOR,
+            "width": width,
+            "height": height,
+            "corner_radius": UIStyles.RADIUS_MD,
+            "text_color": UIStyles.TEXT_PRIMARY,
+            "text_color_disabled": UIStyles.TEXT_SECONDARY,
+            "font": UIStyles.FONT_BUTTON,
+            "border_width": 1,
+            "border_color": UIStyles.BORDER_COLOR,
+        }
+        return ctk.CTkButton(parent, **{**defaults, **kwargs})
     
     @staticmethod
     def create_card_frame(parent, **kwargs):
         """
         Create an elevated card frame with premium styling.
-        
-        Args:
-            parent: Parent widget
-            **kwargs: Additional CTkFrame arguments
-            
-        Returns:
-            CTkFrame: Styled card frame
         """
-        return ctk.CTkFrame(
-            parent,
-            fg_color=UIStyles.SURFACE_COLOR,
-            corner_radius=UIStyles.RADIUS_LG,
-            border_width=1,
-            border_color=UIStyles.BORDER_COLOR,
-            **kwargs
-        )
+        defaults = {
+            "fg_color": UIStyles.SURFACE_COLOR,
+            "corner_radius": UIStyles.RADIUS_LG,
+            "border_width": 1,
+            "border_color": UIStyles.BORDER_COLOR,
+        }
+        return ctk.CTkFrame(parent, **{**defaults, **kwargs})
     
     @staticmethod
     def create_input_field(parent, **kwargs):
         """
         Create a premium styled input field.
-        
-        Args:
-            parent: Parent widget
-            **kwargs: Additional CTkEntry arguments
-            
-        Returns:
-            CTkEntry: Styled input field
         """
-        return ctk.CTkEntry(
-            parent,
-            height=36,
-            corner_radius=UIStyles.RADIUS_MD,
-            border_width=1,
-            border_color=UIStyles.BORDER_COLOR,
-            fg_color=UIStyles.CARD_BG,
-            text_color=UIStyles.TEXT_PRIMARY,
-            font=UIStyles.FONT_NORMAL,
-            **kwargs
-        )
+        defaults = {
+            "height": 36,
+            "corner_radius": UIStyles.RADIUS_MD,
+            "border_width": 1,
+            "border_color": UIStyles.BORDER_COLOR,
+            "fg_color": UIStyles.CARD_BG,
+            "text_color": UIStyles.TEXT_PRIMARY,
+            "font": UIStyles.FONT_NORMAL,
+        }
+        return ctk.CTkEntry(parent, **{**defaults, **kwargs})
     
     @staticmethod
     def create_section_header(parent, text, **kwargs):

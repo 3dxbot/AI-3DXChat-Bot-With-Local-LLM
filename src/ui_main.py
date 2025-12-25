@@ -18,6 +18,7 @@ from .status_manager import StatusManager
 from .download_manager import DownloadManager
 from .file_manager import FileManager
 from .ui_ollama import OllamaUI
+from .ui_character import UICharacterMixin
 import time
 import traceback
 import json
@@ -28,7 +29,7 @@ from .ui_utils import UIUtilsMixin
 from .ui_handlers import UIHandlersMixin
 from .ui_windows import UIWindowsMixin
 from .ui_init import UIInitMixin
-from .ui_hotkeys import HotkeyMixin
+from .ui_hotkeys import HotkeyMixin as UIHotkeysMixin # Renamed for consistency with snippet
 from .ui_settings import SettingsMixin
 try:
     import win32api
@@ -36,7 +37,7 @@ except ImportError:
     win32api = None
 
 
-class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, HotkeyMixin, SettingsMixin):
+class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHotkeysMixin, UICharacterMixin, SettingsMixin):
     """
     Main UI class for the ChatBot application with modern design.
 

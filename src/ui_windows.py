@@ -56,29 +56,16 @@ class UIWindowsMixin:
         Populate the settings frame with content.
         """
         # Page title
-        ctk.CTkLabel(self.settings_frame, text="Prompts", font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"), text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
+        ctk.CTkLabel(self.settings_frame, text="Hotkey Phrases", font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"), text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
 
         # General section
         tab_general = self.settings_frame
-
-        # Global prompt card
-        prompt_frame = UIStyles.create_card_frame(tab_general)
-        prompt_frame.pack(padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG, fill='x', anchor='n')
-        
-        ctk.CTkLabel(prompt_frame, text="Global Prompt", 
-                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_SM))
-        ctk.CTkLabel(prompt_frame, text="Added before each request",
-                      font=UIStyles.FONT_SMALL, text_color=UIStyles.TEXT_SECONDARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_MD))
-
-        self.global_prompt_var = tk.StringVar(value=self.bot.global_prompt)
-        prompt_entry = UIStyles.create_input_field(prompt_frame, textvariable=self.global_prompt_var)
-        prompt_entry.pack(padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL), fill='x')
 
         # Messages card
         messages_frame = UIStyles.create_card_frame(tab_general)
         messages_frame.pack(padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_LG), fill='x', anchor='n')
         
-        ctk.CTkLabel(messages_frame, text="Messages for Invitations and Pose Changes",
+        ctk.CTkLabel(messages_frame, text="Global Messages for Invitations and Pose Changes",
                       font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
 
         inner_messages = ctk.CTkFrame(messages_frame, fg_color="transparent")
@@ -282,7 +269,7 @@ class UIWindowsMixin:
 
     def save_hotkeys_and_prompt(self):
         """
-        Save hotkey phrases, prompt, and message delay.
+        Save hotkey phrases and message delay.
 
         Collects settings from the UI and saves them to the bot configuration,
         then exits settings mode.
@@ -293,7 +280,6 @@ class UIWindowsMixin:
             if phrase:
                 new_phrases[key] = phrase
 
-        new_global_prompt = self.global_prompt_var.get().strip()
         new_pose_message = self.pose_message_var.get().strip()
         new_pose_message_ru = new_pose_message  # Use the same message for both languages since UI has one field
         new_gift_message = self.gift_message_var.get().strip()
@@ -329,7 +315,7 @@ class UIWindowsMixin:
 
         try:
             self.bot.save_hotkeys_and_prompt(
-                new_phrases, new_global_prompt, None, new_pose_message,
+                new_phrases, getattr(self.bot, 'global_prompt', ""), None, new_pose_message,
                 new_pose_message_ru, new_gift_message, new_unknown_pose_message,
                 new_unknown_pose_message_ru,
                 hooker_enabled=hooker_enabled,
@@ -341,7 +327,7 @@ class UIWindowsMixin:
                 hooker_wait=hooker_wait
             )
         except Exception as e:
-            self.bot.log(f"Ошибка при сохранении фраз и промпта: {e}", internal=True)
+            self.bot.log(f"Ошибка при сохранении фраз: {e}", internal=True)
 
     def save_hooker_mod_settings(self):
         """

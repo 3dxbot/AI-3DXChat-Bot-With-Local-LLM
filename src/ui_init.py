@@ -14,6 +14,7 @@ import tkinter as tk
 import customtkinter as ctk
 import os
 from .ui_styles import UIStyles
+from .ui_character import UICharacterMixin
 
 
 class UIInitMixin:
@@ -265,7 +266,7 @@ class UIInitMixin:
         self.dashboard_button = UIStyles.create_secondary_button(nav_card, text="Dashboard", command=self.switch_to_dashboard)
         self.dashboard_button.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
 
-        self.settings_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Prompts", command=self.switch_to_settings)
+        self.settings_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Hotkeys", command=self.switch_to_settings)
         self.settings_button_sidebar.pack(fill=tk.X, padx=UIStyles.SPACE_MD, pady=UIStyles.SPACE_XS)
 
         self.hooker_mod_button_sidebar = UIStyles.create_secondary_button(nav_card, text="Hooker Mod", command=self.switch_to_hooker_mod)
@@ -554,33 +555,11 @@ Ctrl+S: Change language to Spanish"""
 
     def _populate_character_view(self):
         """
-        Populate the character view content.
+        Populate the character view content via UICharacterMixin.
         """
-        # Page title
-        ctk.CTkLabel(self.character_frame, text="Character Settings",
-                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
-                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
-
-        # Character settings card
-        character_card = UIStyles.create_card_frame(self.character_frame)
-        character_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
-
-        ctk.CTkLabel(character_card, text="Character Configuration",
-                      font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
-
-        character_text = """Configure your character's personality, appearance, and behavior settings here.
-
-This section allows you to:
-- Set character name and description
-- Define personality traits
-- Configure appearance preferences
-- Set behavioral patterns
-
-Note: This feature is under development."""
-        ctk.CTkLabel(character_card, text=character_text,
-                      justify="left", anchor="w",
-                      font=UIStyles.FONT_NORMAL,
-                      text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+        # This will be handled by UICharacterMixin._populate_character_view
+        if hasattr(super(), '_populate_character_view'):
+            super()._populate_character_view()
 
     def _populate_ai_setup_view(self):
         """
@@ -714,8 +693,7 @@ Note: This feature is under development."""
 
         # Show character
         if not hasattr(self, 'character_frame'):
-            self.character_frame = ctk.CTkScrollableFrame(self.root, width=self.root.winfo_width() - 180,
-                                                          height=self.root.winfo_height(), fg_color="transparent")
+            self.character_frame = ctk.CTkFrame(self.root, fg_color="transparent")
             self.character_frame.grid(row=0, column=1, rowspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), padx=5, pady=5)
             self._populate_character_view()
         else:

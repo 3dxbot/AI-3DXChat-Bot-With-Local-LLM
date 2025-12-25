@@ -46,6 +46,7 @@ class BotSettingsMixin:
         hooker_warning_message (str): Message when time is ending.
         hooker_hiwaifu_message (str): Successful payment message for AI.
         hooker_payment_wait_time (int): Seconds to wait for payment.
+        active_character_name (str): Name of the currently active character profile.
 
     Methods:
         _load_hotkey_settings: Load hotkey settings from file.
@@ -329,9 +330,15 @@ class BotSettingsMixin:
                     self.current_language = self.ocr_language  # Sync current_language with loaded ocr_language
                     self.show_overlay = settings.get('show_overlay', False)
                     self.autonomous_mode = settings.get('autonomous_mode', False)
+                    self.active_character_name = settings.get("active_character_name", None)
                     self.time_per_500_chars = settings.get('time_per_500_chars', 2.0)
                     if self.show_overlay:
                         self._create_overlay()
+                    
+                    # Load active character data if set
+                    if self.active_character_name:
+                        self._load_active_character_data()
+
                     self.log("Settings loaded.", internal=True)
             else:
                 self.create_default_settings()
@@ -360,7 +367,8 @@ class BotSettingsMixin:
                 "show_overlay": self.show_overlay,
                 "autonomous_mode": self.autonomous_mode,
                 "time_per_500_chars": self.time_per_500_chars,
-                "active_model": getattr(self, 'active_model', None)
+                "active_model": getattr(self, 'active_model', None),
+                "active_character_name": getattr(self, 'active_character_name', None)
             }
             os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
@@ -404,3 +412,21 @@ class BotSettingsMixin:
         self.save_settings()
         if self.chat_processor:
             self.chat_processor.update_nicks(self.ignore_nicks, self.target_nicks)
+
+    def _load_active_character_data(self):
+        """Load data from the active character file and apply to bot."""
+        if not getattr(self, 'active_character_name', None):
+            return
+        
+        from .config import CHARACTERS_DIR
+        char_file = os.path.join(CHARACTERS_DIR, f"{self.active_character_name}.json")
+        if os.path.exists(char_file):
+            try:
+                with open(char_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    self.global_prompt = data.get("global_prompt", getattr(self, "global_prompt", ""))
+                    self.character_greeting = data.get("greeting", "")
+                    self.character_manifest = data.get("manifest", "")
+                    self.log(f"Active character '{self.active_character_name}' data applied.", internal=True)
+            except Exception as e:
+                self.log(f"Error loading active character data: {e}", internal=True)
