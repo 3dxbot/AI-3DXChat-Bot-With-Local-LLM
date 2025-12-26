@@ -490,7 +490,8 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         response = await self.ui.gemini_manager.generate_response(
             llm_input,
             system_prompt=self.global_prompt,
-            manifest=self.character_manifest
+            manifest=self.character_manifest,
+            memory_cards=getattr(self, 'memory_cards', None)
         )
         
         if response:
@@ -606,7 +607,9 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                 if self.partnership_active and potential_new_nicks:
                     for nick in potential_new_nicks:
                         normalized_nick = self.chat_processor._normalize_nick(nick)
-                        if normalized_nick and normalized_nick not in self.ignore_nicks and normalized_nick not in self.target_nicks:
+                        # Avoid adding self to target nicks
+                        bot_name = self.active_character_name.lower() if hasattr(self, 'active_character_name') and self.active_character_name else "roxy"
+                        if normalized_nick and normalized_nick != bot_name and normalized_nick not in self.ignore_nicks and normalized_nick not in self.target_nicks:
                             self.target_nicks.add(normalized_nick)
                             self.chat_processor.update_nicks(self.ignore_nicks, self.target_nicks) # Update lists in processor
                             self.log(f"Automatically added partner from chat: {normalized_nick}", internal=True)
@@ -647,12 +650,18 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                             response = await self.ui.gemini_manager.generate_response(
                                 notification_msg,
                                 system_prompt=self.global_prompt,
-                                manifest=self.character_manifest
+                                manifest=self.character_manifest,
+                                memory_cards=getattr(self, 'memory_cards', None)
                             )
                             if response:
                                 processed_parts = self.chat_processor.process_message(response)
                                 await self.send_to_game(processed_parts, force=True)
                                 self.log("Pose response from LLM inserted into game.", internal=True)
+                                
+                                # Sync to UI
+                                if hasattr(self.ui, '_add_message'):
+                                    active_name = getattr(self, 'active_character_name', "Bot")
+                                    self.ui.root.after(0, lambda n=active_name, r=response: self.ui._add_message(n, r, is_bot=True))
                             else:
                                 self.log("Failed to get pose response from LLM.", internal=True)
                             

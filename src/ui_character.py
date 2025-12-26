@@ -345,6 +345,7 @@ class UICharacterMixin:
             self.bot.global_prompt = self.current_character.global_prompt
             self.bot.character_greeting = self.current_character.greeting
             self.bot.character_manifest = self.current_character.manifest
+            self.bot.memory_cards = self.current_character.memory_cards
             
             # Log what is being applied for transparency
             self.bot.log(f"Activating character: {self.active_character_name}", internal=True)

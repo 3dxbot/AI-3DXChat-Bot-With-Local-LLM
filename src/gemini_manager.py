@@ -87,7 +87,7 @@ class GeminiManager:
             self.logger.error(f"Error listing models: {e}")
             return []
 
-    async def generate_response(self, prompt: str, system_prompt: str = "", manifest: str = "") -> Optional[str]:
+    async def generate_response(self, prompt: str, system_prompt: str = "", manifest: str = "", memory_cards: List[Dict] = None) -> Optional[str]:
         """
         Generate a response using the Gemini API.
         """
@@ -106,7 +106,15 @@ class GeminiManager:
         # System Message
         full_system_prompt = system_prompt
         if manifest:
-            full_system_prompt += f"\n\nCharacter Context:\n{manifest}"
+            full_system_prompt += f"\n\nCharacter Identity/Manifest:\n{manifest}"
+            
+        if memory_cards:
+            full_system_prompt += "\n\nLong-term Memory/Knowledge (RAG):"
+            for card in memory_cards:
+                key = card.get("key", "Knowledge")
+                data = card.get("data", "")
+                if data.strip():
+                    full_system_prompt += f"\n- {key}: {data}"
         
         if full_system_prompt.strip():
             messages.append({"role": "system", "content": full_system_prompt})

@@ -104,6 +104,12 @@ class UIChatMixin:
 
     def _add_message(self, author, message, is_bot=False, msg_id=None):
         """Add a message to the internal list and update display if initialized."""
+        # Simple content-based deduplication to prevent OCR artifacts or double logs
+        if self.chat_messages:
+            last_author, last_msg, last_bot, last_id = self.chat_messages[-1]
+            if last_author == author and last_msg == message:
+                return # Skip duplicate
+
         self.chat_messages.append((author, message, is_bot, msg_id))
         
         # Only render if UI is initialized

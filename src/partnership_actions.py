@@ -99,16 +99,33 @@ class PartnershipActionsMixin:
                         self.sending_in_progress = True
 
                         try:
-                            # Use character greeting from profile (Migrated from browser manager)
-                            response = self.character_greeting if self.character_greeting else "Hello!"
+                            # 1. Try static greeting first (preferred by user for player-facing start)
+                            response = self.character_greeting if hasattr(self, 'character_greeting') and self.character_greeting else ""
+                            
+                            if not response:
+                                # 2. Use Gemini to generate a fresh greeting if no static one exists
+                                self.log("Generating fresh greeting via Gemini...", internal=True)
+                                greeting_prompt = "You just started a new partnership. Greet the user in your character and start the conversation."
+                                
+                                response = await self.ui.gemini_manager.generate_response(
+                                    greeting_prompt,
+                                    system_prompt=self.global_prompt,
+                                    manifest=self.character_manifest,
+                                    memory_cards=getattr(self, 'memory_cards', None)
+                                )
 
                             if response:
-                                self.log(f"Using initial greeting from character profile: {repr(response)}", internal=True)
+                                self.log(f"Greeting: {repr(response)}", internal=True)
                                 processed_parts = self.chat_processor.process_message(response)
                                 await self.send_to_game(processed_parts, force=True)
                                 self.last_message_time = time.time()
                                 self.log("Greeting sent to game.", internal=True)
                                 self.first_message_sent = True
+                                
+                                # Sync to UI
+                                if hasattr(self.ui, '_add_message'):
+                                    active_name = getattr(self, 'active_character_name', "Bot")
+                                    self.ui.root.after(0, lambda n=active_name, r=response: self.ui._add_message(n, r, is_bot=True))
                             else:
                                 self.log("Greeting empty, skipping.", internal=True)
                         finally:
