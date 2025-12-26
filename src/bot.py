@@ -21,6 +21,7 @@ import pyperclip
 import pytesseract
 import time
 import traceback
+from typing import Optional, Dict, List, Callable, Any
 from .config import (SETTINGS_FILE, TESSERACT_PATH, SCAN_INTERVAL_IDLE, SCAN_INTERVAL_ACTIVE,
                     HOTKEY_PHRASES_FILE, OVERLAY_COLOR, OVERLAY_THICKNESS, INPUT_SQUARE_SIZE,
                     PARTNERSHIP_COLOR, POSE_COLOR, CLOSE_BTN_COLOR,
@@ -977,3 +978,49 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                 await self._close_partnership()
                 self.hooker_current_state = None
                 return
+
+    def activate_character_model(self, character_data: Dict[str, Any], base_model: str = "") -> bool:
+        """
+        Activate character model with automatic Modelfile creation.
+        
+        Args:
+            character_data: Character data including system prompt and manifest.
+            base_model: Base model to use (if empty, uses active model).
+            
+        Returns:
+            bool: True if activation successful, False otherwise.
+        """
+        try:
+            character_name = character_data.get("name", "character")
+            self.log(f"Activating character model for: {character_name}", internal=True)
+            
+            # Get base model
+            if not base_model:
+                base_model = self.ui.status_manager.get_active_model()
+                if not base_model:
+                    self.log("No active model found for character activation.", internal=True)
+                    return False
+            
+            # Create character-specific model
+            character_model_name = self.ui.ollama_manager.create_character_model(
+                base_model, character_data
+            )
+            
+            if character_model_name:
+                # Activate the new character model
+                success = self.ui.ollama_manager.activate_model(character_model_name)
+                if success:
+                    self.log(f"Successfully activated character model: {character_model_name}", internal=True)
+                    # Update UI to show the new model
+                    self.ui.root.after(0, self.ui.update_model_list)
+                    return True
+                else:
+                    self.log(f"Failed to activate character model: {character_model_name}", internal=True)
+                    return False
+            else:
+                self.log("Failed to create character model.", internal=True)
+                return False
+                
+        except Exception as e:
+            self.log(f"Error activating character model: {e}", internal=True)
+            return False

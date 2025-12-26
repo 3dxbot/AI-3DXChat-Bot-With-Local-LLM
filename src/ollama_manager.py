@@ -27,6 +27,8 @@ from .file_manager import FileManager
 from .download_manager import DownloadManager
 from .status_manager import StatusManager
 from .model_download_manager import ModelDownloadManager
+from .gguf_manager import GGUFManager
+from .modelfile_generator import ModelfileGenerator
 from .config import OLLAMA_API_URL, OLLAMA_DOWNLOAD_URL, OLLAMA_HOST, OLLAMA_PORT
 
 
@@ -58,6 +60,8 @@ class OllamaManager:
         self.download_manager = download_manager
         self.status_manager = status_manager
         self.model_download_manager = ModelDownloadManager(file_manager)
+        self.gguf_manager = GGUFManager(file_manager)
+        self.modelfile_generator = ModelfileGenerator()
         self.logger = logging.getLogger(__name__)
         
         self.ollama_path = self.file_manager.get_ollama_path()
@@ -868,6 +872,149 @@ class OllamaManager:
         """Clear the current conversation context history."""
         self.chat_history = []
         self.logger.info("Chat history cleared in OllamaManager.")
+    
+    # --- GGUF Model Support Methods ---
+    
+    def create_gguf_model(self, gguf_path: str, model_name: str, 
+                         system_prompt: str = "", manifest: str = "") -> bool:
+        """
+        Create a new model from GGUF file with character integration.
+        
+        Args:
+            gguf_path: Path to the GGUF file.
+            model_name: Name for the new model.
+            system_prompt: System prompt from character.
+            manifest: Character manifest info.
+            
+        Returns:
+            bool: True if model creation successful, False otherwise.
+        """
+        try:
+            return self.gguf_manager.create_model_from_gguf(
+                gguf_path, model_name, system_prompt, manifest
+            )
+        except Exception as e:
+            self.logger.error(f"Error creating GGUF model: {e}")
+            return False
+    
+    def update_model_character(self, model_name: str, system_prompt: str = "", 
+                              manifest: str = "") -> bool:
+        """
+        Update character information for an existing model.
+        
+        Args:
+            model_name: Name of the model.
+            system_prompt: System prompt from character.
+            manifest: Character manifest info.
+            
+        Returns:
+            bool: True if update successful, False otherwise.
+        """
+        try:
+            return self.gguf_manager.update_model_character(
+                model_name, system_prompt, manifest
+            )
+        except Exception as e:
+            self.logger.error(f"Error updating model character: {e}")
+            return False
+    
+    def list_gguf_models(self) -> List[Dict[str, Any]]:
+        """
+        List all GGUF models registered in the system.
+        
+        Returns:
+            List[Dict[str, Any]]: List of GGUF model information.
+        """
+        try:
+            return self.gguf_manager.list_gguf_models()
+        except Exception as e:
+            self.logger.error(f"Error listing GGUF models: {e}")
+            return []
+    
+    def is_gguf_model(self, model_name: str) -> bool:
+        """
+        Check if a model is a GGUF model.
+        
+        Args:
+            model_name: Name of the model.
+            
+        Returns:
+            bool: True if model is GGUF, False otherwise.
+        """
+        try:
+            return self.gguf_manager.is_model_registered(model_name)
+        except Exception as e:
+            self.logger.error(f"Error checking if model is GGUF: {e}")
+            return False
+    
+    def delete_gguf_model(self, model_name: str) -> bool:
+        """
+        Delete a GGUF model and its files.
+        
+        Args:
+            model_name: Name of the model to delete.
+            
+        Returns:
+            bool: True if deletion successful, False otherwise.
+        """
+        try:
+            return self.gguf_manager.delete_gguf_model(model_name)
+        except Exception as e:
+            self.logger.error(f"Error deleting GGUF model: {e}")
+            return False
+    
+    def create_character_model(self, base_model: str, character_data: Dict[str, Any]) -> str:
+        """
+        Create a character-specific model from base model.
+        
+        Args:
+            base_model: Base model name or GGUF file path.
+            character_data: Character data including system prompt and manifest.
+            
+        Returns:
+            str: Name of the created character model.
+        """
+        try:
+            # Generate character model name
+            character_name = character_data.get("name", "character")
+            model_name = self.modelfile_generator.create_character_model_name(
+                base_model, character_name
+            )
+            
+            # Create Modelfile
+            modelfile_content = self.modelfile_generator.generate_character_modelfile(
+                model_name, base_model, character_data
+            )
+            
+            # Save Modelfile
+            from .config import get_model_folder_path
+            model_folder = Path(get_model_folder_path(model_name))
+            model_folder.mkdir(parents=True, exist_ok=True)
+            
+            modelfile_path = model_folder / "Modelfile"
+            with open(modelfile_path, 'w', encoding='utf-8') as f:
+                f.write(modelfile_content)
+            
+            # Register model with Ollama
+            response = requests.post(
+                f"{self.api_base_url}/api/create",
+                json={
+                    "name": model_name,
+                    "modelfile": modelfile_content
+                },
+                timeout=300
+            )
+            
+            if response.status_code == 200:
+                self.logger.info(f"Successfully created character model: {model_name}")
+                return model_name
+            else:
+                self.logger.error(f"Failed to create character model: HTTP {response.status_code}")
+                return ""
+                
+        except Exception as e:
+            self.logger.error(f"Error creating character model: {e}")
+            return ""
     
     def _run_service(self):
         """Run Ollama service in background thread."""

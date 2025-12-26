@@ -70,6 +70,9 @@ class OllamaUI:
         self.char_sync_label = None
         self.gpu_info_label = None
         
+        # UI components for GGUF
+        self.browse_gguf_btn = None
+        
         # Bind status callbacks
         self.status_manager.add_callback('ollama_status', self._on_ollama_status_change)
         self.status_manager.add_callback('active_model', self._on_active_model_change)
@@ -405,6 +408,68 @@ class OllamaUI:
         )
         self.download_model_btn.pack(side='right')
         
+        # GGUF Upload Section - REMOVED
+        # gguf_section = ctk.CTkFrame(zone, fg_color="transparent")
+        # gguf_section.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_LG))
+        
+        # gguf_label = ctk.CTkLabel(
+        #     gguf_section,
+        #     text="Upload GGUF Model:",
+        #     font=UIStyles.FONT_NORMAL,
+        #     text_color=UIStyles.TEXT_SECONDARY
+        # )
+        # gguf_label.pack(anchor='w', pady=(0, UIStyles.SPACE_SM))
+        
+        # GGUF Input and Upload Button Row - REMOVED
+        # gguf_row = ctk.CTkFrame(gguf_section, fg_color="transparent")
+        # gguf_row.pack(fill='x', pady=(0, UIStyles.SPACE_MD))
+        
+        # self.gguf_input = UIStyles.create_input_field(
+        #     gguf_row,
+        #     placeholder_text="Path to GGUF file or URL from Hugging Face..."
+        # )
+        # self.gguf_input.pack(side='left', fill='x', expand=True, padx=(0, UIStyles.SPACE_MD))
+        
+        # self.browse_gguf_btn = UIStyles.create_button(
+        #     gguf_row,
+        #     text="Browse...",
+        #     command=self._on_browse_gguf_click,
+        #     width=100
+        # )
+        # self.browse_gguf_btn.pack(side='left', padx=(0, UIStyles.SPACE_MD))
+        
+        # self.upload_gguf_btn = UIStyles.create_button(
+        #     gguf_row,
+        #     text="Upload GGUF",
+        #     command=self._on_upload_gguf_click,
+        #     width=120
+        # )
+        # self.upload_gguf_btn.pack(side='left')
+        
+        # Browse button for local GGUF files
+        browse_section = ctk.CTkFrame(zone, fg_color="transparent")
+        browse_section.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_LG))
+        
+        browse_label = ctk.CTkLabel(
+            browse_section,
+            text="Local GGUF File:",
+            font=UIStyles.FONT_NORMAL,
+            text_color=UIStyles.TEXT_SECONDARY
+        )
+        browse_label.pack(anchor='w', pady=(0, UIStyles.SPACE_SM))
+        
+        # Browse Button Row
+        browse_row = ctk.CTkFrame(browse_section, fg_color="transparent")
+        browse_row.pack(fill='x', pady=(0, UIStyles.SPACE_MD))
+        
+        self.browse_gguf_btn = UIStyles.create_button(
+            browse_row,
+            text="Browse...",
+            command=self._on_browse_gguf_click,
+            width=100
+        )
+        self.browse_gguf_btn.pack(side='left')
+        
         # Model list section
         list_section = ctk.CTkFrame(zone, fg_color="transparent")
         list_section.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
@@ -481,7 +546,7 @@ class OllamaUI:
             text_color=UIStyles.TEXT_TERTIARY
         )
         self.model_progress_details.pack(anchor='w', pady=(5, 0))
-
+        
         # Trigger initial model list refresh if running
         if self.status_manager.get_ollama_status() == "Running":
             self._refresh_model_list()
@@ -646,7 +711,7 @@ class OllamaUI:
         char_text = new_char if new_char else "None"
         if hasattr(self, 'active_char_label') and self.active_char_label:
             self.active_char_label.configure(text=char_text)
-
+    
     def _handle_active_model_ui_update(self, new_model):
         model_text = new_model if new_model else "None"
         if hasattr(self, 'active_model_label') and self.active_model_label:
@@ -988,3 +1053,50 @@ class OllamaUI:
         """Update GPU label safely."""
         if hasattr(self, 'gpu_info_label') and self.gpu_info_label:
             self.gpu_info_label.configure(text=text, text_color=color)
+    
+    def _on_browse_gguf_click(self):
+        """Handle GGUF file browse button click."""
+        try:
+            from tkinter import filedialog
+            file_path = filedialog.askopenfilename(
+                title="Select GGUF Model File",
+                filetypes=[("GGUF Files", "*.gguf"), ("All Files", "*.*")]
+            )
+            if file_path:
+                # Ask for model name
+                model_name = tk.simpledialog.askstring(
+                    "Model Name", 
+                    "Enter a name for this model:",
+                    parent=self.parent
+                )
+                if model_name:
+                    # Show progress
+                    self.model_progress_frame.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+                    self.model_progress_bar.set(0)
+                    self.model_progress_label.configure(text="0%")
+                    self.model_progress_title.configure(text=f"Uploading {model_name}...")
+                    self.model_progress_details.configure(text="Status: Creating model from GGUF file...")
+                    
+                    def upload_task():
+                        try:
+                            success = self.ollama_manager.create_gguf_model(file_path, model_name)
+                            if success:
+                                self.parent.after(0, lambda: self._refresh_model_list())
+                                self.parent.after(0, lambda: messagebox.showinfo(
+                                    "Upload Complete",
+                                    f"GGUF model '{model_name}' uploaded successfully!"
+                                ))
+                            else:
+                                self.parent.after(0, lambda: messagebox.showerror(
+                                    "Upload Error",
+                                    f"Failed to upload GGUF model '{model_name}'."
+                                ))
+                        except Exception as e:
+                            self.logger.error(f"Error uploading GGUF model: {e}")
+                            self.parent.after(0, lambda: messagebox.showerror("Upload Error", str(e)))
+                        finally:
+                            self.parent.after(2000, lambda: self.model_progress_frame.pack_forget())
+                    
+                    threading.Thread(target=upload_task, daemon=True).start()
+        except Exception as e:
+            self.logger.error(f"Error browsing GGUF file: {e}")
