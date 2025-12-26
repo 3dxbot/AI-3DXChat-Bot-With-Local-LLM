@@ -274,5 +274,5 @@ class ChatActionsMixin:
         """
         Clear bot conversation history in local LLM context.
         """
-        self.ui.ollama_manager.clear_history()
-        self.log("Chat history cleared (local LLM history reset).", internal=True)
+        self.ui.gemini_manager.clear_history()
+        self.log("Chat history cleared (LLM history reset).", internal=True)

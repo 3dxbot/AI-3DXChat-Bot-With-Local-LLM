@@ -43,18 +43,18 @@ class UIHandlersMixin:
 
     def on_start_click(self):
         """
-        Handle start button click.
-
-        Starts the bot if it exists and is not already running.
+        Handle connect/disconnect button click.
         """
-        if hasattr(self, 'ollama_manager') and hasattr(self, 'status_manager'):
+        if hasattr(self, 'gemini_manager') and hasattr(self, 'status_manager'):
             status = self.status_manager.get_ollama_status()
-            if status == "Running":
-                import threading
-                threading.Thread(target=self.ollama_manager.stop_service, daemon=True).start()
+            if status == "Connected":
+                # Disconnect logic
+                self.status_manager.set_ollama_status("Stopped")
             else:
+                # Trigger connection check
+                self.status_manager.set_ollama_status("Checking...")
                 import threading
-                threading.Thread(target=self.ollama_manager.start_service, daemon=True).start()
+                threading.Thread(target=self.gemini_manager.check_connection, daemon=True).start()
 
     def on_pause_click(self):
         """

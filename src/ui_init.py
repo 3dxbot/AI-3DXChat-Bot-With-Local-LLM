@@ -50,7 +50,7 @@ class UIInitMixin:
         """
         self.root.columnconfigure(0, weight=0)  # Sidebar
         self.root.columnconfigure(1, weight=1)  # Main area
-        self.root.rowconfigure(0, weight=0)  # Ollama Status
+        self.root.rowconfigure(0, weight=0)  # Gemini Status
         self.root.rowconfigure(1, weight=0)  # Main header
         self.root.rowconfigure(2, weight=1)  # Main content
 
@@ -82,10 +82,10 @@ class UIInitMixin:
         Creates the main header containing start, pause, stop, clear chat,
         and close partnership buttons with initial layout configuration.
         """
-        # Ollama Status Zone (added first, at the very top)
-        if hasattr(self, 'ollama_ui'):
-             self.ollama_status_frame = self.ollama_ui.create_dashboard_zone(self.root)
-             self.ollama_status_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=(UIStyles.SPACE_LG, UIStyles.SPACE_SM))
+        # Gemini Status Zone (added first, at the very top)
+        if hasattr(self, 'gemini_ui'):
+             self.gemini_status_frame = self.gemini_ui.create_dashboard_zone(self.root)
+             self.gemini_status_frame.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=(UIStyles.SPACE_LG, UIStyles.SPACE_SM))
              
         self.header_frame = UIStyles.create_card_frame(self.root)
         self.header_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), padx=UIStyles.SPACE_LG, pady=(UIStyles.SPACE_LG, 0))
@@ -94,7 +94,7 @@ class UIInitMixin:
 
         # Buttons - calm neutral colors
         btn_height = 36
-        self.start_button = UIStyles.create_button(self.header_frame, text="Start Ollama", command=self.on_start_click, fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669", height=btn_height)
+        self.start_button = UIStyles.create_button(self.header_frame, text="Connect", command=self.on_start_click, fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669", height=btn_height)
         self.pause_button = UIStyles.create_secondary_button(self.header_frame, text="Start Scan", command=self.on_pause_click, state=tk.DISABLED, height=btn_height)
         self.clear_chat_button = UIStyles.create_secondary_button(self.header_frame, text="Clear Chat", command=self.on_clear_chat_click, state=tk.DISABLED, height=btn_height)
         self.close_partnership_button = UIStyles.create_secondary_button(self.header_frame, text="Close Partn", command=self.on_close_partnership_click, state=tk.DISABLED, height=btn_height)
@@ -134,6 +134,15 @@ class UIInitMixin:
         Args:
             parent: Parent widget to contain the logs frame.
         """
+        # 1. Left Column: Status and Info
+        left_col = ctk.CTkFrame(parent, fg_color="transparent")
+        left_col.grid(row=0, column=0, sticky="nsew", padx=(0, UIStyles.SPACE_LG))
+        
+        # API Status (integrated from GeminiUI)
+        if hasattr(self, 'gemini_ui'):
+            status_zone = self.gemini_ui.create_dashboard_zone(left_col)
+            status_zone.pack(fill='x', pady=(0, UIStyles.SPACE_LG))
+
         # Header - always visible
         logs_header = ctk.CTkFrame(parent, fg_color="transparent")
         logs_header.grid(row=2, column=0, sticky='ew', padx=0, pady=(UIStyles.SPACE_MD, UIStyles.SPACE_XS))
@@ -414,6 +423,20 @@ class UIInitMixin:
         self.update_sidebar_active()
         self.show_character_view()
 
+    def _populate_ai_setup_view(self):
+        """Populate AI Setup view."""
+        # Use self.ai_setup_frame as container
+        container = self.ai_setup_frame
+        
+        # Page title
+        ctk.CTkLabel(container, text="AI Setup",
+                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
+                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
+
+        # Delegate creation to GeminiUI
+        zones = self.gemini_ui.create_ai_setup_zones(container)
+        return zones
+
     def switch_to_ai_setup(self):
         """
         Switch to AI setup view.
@@ -547,39 +570,9 @@ Ctrl+S: Change language to Spanish"""
         if hasattr(super(), '_populate_character_view'):
             super()._populate_character_view()
 
-    def _populate_ai_setup_view(self):
-        """
-        Populate the AI setup view content.
-        """
-        # Page title
-        ctk.CTkLabel(self.ai_setup_frame, text="AI Setup",
-                      font=(UIStyles.FONT_FAMILY, UIStyles.FONT_SIZE_DISPLAY, "bold"),
-                      text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_LG))
+    # This method is now handled by the one at line 426
+    # Removing duplicate _populate_ai_setup_view
 
-        # Create Ollama zones if Ollama UI is available
-        if hasattr(self, 'ollama_ui'):
-            self.ai_setup_zones = self.ollama_ui.create_ai_setup_zones(self.ai_setup_frame)
-        else:
-            # Fallback content
-            ai_card = UIStyles.create_card_frame(self.ai_setup_frame)
-            ai_card.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=UIStyles.SPACE_LG)
-
-            ctk.CTkLabel(ai_card, text="AI Configuration",
-                          font=UIStyles.FONT_TITLE, text_color=UIStyles.TEXT_PRIMARY).pack(anchor='w', padx=UIStyles.SPACE_2XL, pady=(UIStyles.SPACE_2XL, UIStyles.SPACE_MD))
-
-            ai_text = """Configure AI model settings and parameters here.
-
-This section allows you to:
-- Select AI model and provider
-- Set temperature and other generation parameters
-- Configure API endpoints
-- Set up model-specific options
-
-Note: This feature is under development."""
-            ctk.CTkLabel(ai_card, text=ai_text,
-                          justify="left", anchor="w",
-                          font=UIStyles.FONT_NORMAL,
-                          text_color=UIStyles.TEXT_SECONDARY).pack(anchor="w", padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
 
     def _populate_chat_view(self):
         """
@@ -925,17 +918,16 @@ Note: This feature is under development."""
     
     def _update_start_button_state(self):
         """
-        Update Start button state based on Ollama status.
+        Update Start button state based on Gemini status.
         
-        The Start button should be enabled only when Ollama is Running.
+        The Start button should be enabled only when Gemini is Connected.
         """
-        if hasattr(self, 'ollama_ui') and hasattr(self, 'start_button'):
+        if hasattr(self, 'gemini_ui') and hasattr(self, 'start_button'):
             if hasattr(self, 'status_manager'):
-                ollama_status = self.status_manager.get_ollama_status()
-                if ollama_status == "Running":
+                api_status = self.status_manager.get_ollama_status()
+                if api_status == "Connected":
                     self.start_button.configure(state="normal", fg_color=UIStyles.SUCCESS_COLOR, hover_color="#059669")
                 else:
                     self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)
             else:
-                # Fallback: disable if no status manager available
                 self.start_button.configure(state="disabled", fg_color=UIStyles.DISABLED_COLOR, hover_color=UIStyles.DISABLED_COLOR)

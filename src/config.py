@@ -67,17 +67,25 @@ GIFT_IMAGE_PATH = os.path.join(RESOURCES_DIR, "gift.png")
 POSES_DIR = os.path.join(RESOURCES_DIR, "poses")
 UNKNOWN_POSES_DIR = os.path.join(POSES_DIR, "unknown")
 
-# Ollama paths
-OLLAMA_DIR = os.path.join(RESOURCES_DIR, "ollama")
-OLLAMA_EXE_PATH = os.path.join(OLLAMA_DIR, "ollama.exe")
-OLLAMA_MODELS_DIR = os.path.join(OLLAMA_DIR, "models")
-OLLAMA_TEMP_DIR = os.path.join(OLLAMA_DIR, "temp")
+# Gemini API settings
+GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/openai"
+GEMINI_API_KEY_FILE = os.path.join(BASE_DIR, 'config', 'gemini_key.txt')
 
-# Ollama API settings
-OLLAMA_HOST = "127.0.0.1"
-OLLAMA_PORT = "11435"
-OLLAMA_API_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
-OLLAMA_DOWNLOAD_URL = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
+# DreamGen API settings (Deprecated/Removed)
+# DREAMGEN_API_URL = "https://dreamgen.com/api/openai/v1"
+# DREAMGEN_API_KEY_FILE = os.path.join(BASE_DIR, 'config', 'dreamgen_key.txt')
+
+# Ollama paths (Deprecated/Removed)
+# OLLAMA_DIR = os.path.join(RESOURCES_DIR, "ollama")
+# OLLAMA_EXE_PATH = os.path.join(OLLAMA_DIR, "ollama.exe")
+# OLLAMA_MODELS_DIR = os.path.join(OLLAMA_DIR, "models")
+# OLLAMA_TEMP_DIR = os.path.join(OLLAMA_DIR, "temp")
+
+# Ollama API settings (Deprecated/Removed)
+# OLLAMA_HOST = "127.0.0.1"
+# OLLAMA_PORT = "11435"
+# OLLAMA_API_URL = f"http://{OLLAMA_HOST}:{OLLAMA_PORT}"
+# OLLAMA_DOWNLOAD_URL = "https://github.com/ollama/ollama/releases/latest/download/ollama-windows-amd64.zip"
 
 # Whether to use multiprocessing for OCR
 USE_MULTIPROCESSING = True

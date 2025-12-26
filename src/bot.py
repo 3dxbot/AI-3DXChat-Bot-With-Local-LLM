@@ -214,7 +214,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         """
         Clear bot conversation history in local LLM context and UI.
         """
-        self.ui.ollama_manager.clear_history()
+        self.ui.gemini_manager.clear_history()
         if hasattr(self.ui, 'chat_messages'):
             self.ui.chat_messages = []
             if hasattr(self.ui, '_refresh_chat_display'):
@@ -255,17 +255,17 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         if self.bot_running:
             return
         
-        # Check Ollama status before starting
+        # Check DreamGen status before starting
         if hasattr(self.ui, 'status_manager'):
             ollama_status = self.ui.status_manager.get_ollama_status()
             active_model = self.ui.status_manager.get_active_model()
             
-            if ollama_status != "Running":
-                self.log("Cannot start bot: Ollama is not running. Please start Ollama first.", internal=True)
+            if ollama_status != "Connected":
+                self.log("Cannot start bot: DreamGen API not connected. Please check settings.", internal=True)
                 return
             
             if not active_model:
-                self.log("Cannot start bot: No active model selected. Please download and activate a model first.", internal=True)
+                self.log("Cannot start bot: No active model selected.", internal=True)
                 return
         
         self.bot_running = True
@@ -487,7 +487,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         self.log(f"LLM Input (Translated): {repr(llm_input)}", internal=True)
         
         # 4. Generate Response
-        response = await self.ui.ollama_manager.generate_response(
+        response = await self.ui.gemini_manager.generate_response(
             llm_input,
             system_prompt=self.global_prompt,
             manifest=self.character_manifest
@@ -644,7 +644,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                             notification_msg = f"{self.get_pose_message()} {pose_name}"
                             self.log(f"Notifying LLM about the new pose: {notification_msg}", internal=True)
                             
-                            response = await self.ui.ollama_manager.generate_response(
+                            response = await self.ui.gemini_manager.generate_response(
                                 notification_msg,
                                 system_prompt=self.global_prompt,
                                 manifest=self.character_manifest
@@ -789,7 +789,7 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
                     # Send success message to LLM for processing
                     if self.hooker_hiwaifu_message:
                         self.log(f"Sending payment confirmation to LLM: {self.hooker_hiwaifu_message}", internal=True)
-                        response = await self.ui.ollama_manager.generate_response(
+                        response = await self.ui.gemini_manager.generate_response(
                             self.hooker_hiwaifu_message,
                             system_prompt=self.global_prompt,
                             manifest=self.character_manifest

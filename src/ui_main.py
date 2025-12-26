@@ -13,11 +13,11 @@ import tkinter as tk
 import customtkinter as ctk
 import keyboard
 from .bot import ChatBot
-from .ollama_manager import OllamaManager
+from .gemini_manager import GeminiManager
 from .status_manager import StatusManager
 from .download_manager import DownloadManager
 from .file_manager import FileManager
-from .ui_ollama import OllamaUI
+from .ui_gemini import GeminiUI
 from .ui_character import UICharacterMixin
 from .ui_chat import UIChatMixin
 import time
@@ -95,12 +95,13 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         self._dots_count = 0
         self.icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'resources', 'logo.ico')
         
-        # Ollama integration
+        # Gemini integration
         self.file_manager = FileManager()
         self.status_manager = StatusManager()
-        self.download_manager = DownloadManager()
-        self.ollama_manager = OllamaManager(self.file_manager, self.download_manager, self.status_manager)
-        self.ollama_ui = OllamaUI(self.root, self.ollama_manager, self.status_manager, self.file_manager, self.download_manager)
+        self.download_manager = DownloadManager() # Keep for file ops if needed
+        self.gemini_manager = GeminiManager(self.status_manager)
+        self.gemini_ui = GeminiUI(self.root, self.gemini_manager, self.status_manager)
+
 
         # Configure modern styles
         UIStyles.configure_styles()
@@ -115,18 +116,17 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         self.hooker_enabled_var.set(getattr(self.bot, 'hooker_mod_enabled', False))
         self.update_switch_colors()
 
-        # Initialize Ollama system
-        self.file_manager.create_ollama_directories()
+        # Initialize system
         self.status_manager.start_monitoring()
         
-        # Add callback for Ollama status changes to update Start button
-        self.status_manager.add_callback('ollama_status', self._on_ollama_status_changed)
+        # Check Gemini connection in background
+        import threading
+        threading.Thread(target=self.gemini_manager.check_connection, daemon=True).start()
+        
+        # Add callback for status changes to update Start button
+        self.status_manager.add_callback('ollama_status', self._on_status_changed) # Reused callback name for simplicity
         # Add callback for active model change to save it
         self.status_manager.add_callback('active_model', self._on_active_model_changed_persistence)
-        
-        # Start Ollama detection in background
-        import threading
-        threading.Thread(target=self.ollama_manager.detect_ollama, daemon=True).start()
 
         # Check keyboard layout and warn if not English
         self._check_keyboard_layout()
@@ -180,49 +180,31 @@ class ChatBotUI(UIUtilsMixin, UIHandlersMixin, UIWindowsMixin, UIInitMixin, UIHo
         except Exception as e:
             self.log_message(f"Error checking keyboard layout: {e}", internal=True)
     
-    def _on_ollama_status_changed(self, new_status, old_status):
+    def _on_status_changed(self, new_status, old_status):
         """
-        Handle Ollama status changes.
-        
-        Updates the Start button state based on Ollama status.
+        Handle API status changes.
         """
         if hasattr(self, 'start_button'):
-            if new_status == "Running":
+            if new_status == "Connected":
                 self.root.after(0, lambda: self.start_button.configure(
                     state="normal", 
-                    text="Stop Ollama",
+                    text="Disconnect",
                     fg_color=UIStyles.SECONDARY_COLOR, 
                     hover_color=UIStyles.ERROR_COLOR
                 ))
-                # Automatically start bot when Ollama is running
+                # Automatically start bot when Connected
                 if self.bot and not self.bot.bot_running:
                     self.bot.start_bot()
-            elif new_status == "Stopped" or new_status == "Error":
+            else:
                 self.root.after(0, lambda: self.start_button.configure(
                     state="normal", 
-                    text="Start Ollama",
+                    text="Wait Connection..." if new_status == "Checking..." else "Connect",
                     fg_color=UIStyles.SUCCESS_COLOR, 
                     hover_color="#059669"
                 ))
-                # Automatically stop bot when Ollama is not running
+                # Stop bot if connection lost
                 if self.bot and self.bot.bot_running:
                     self.bot.stop_bot()
-            elif new_status == "Not Installed":
-                self.root.after(0, lambda: self.start_button.configure(
-                    state="disabled", 
-                    text="Start Ollama",
-                    fg_color=UIStyles.DISABLED_COLOR, 
-                    hover_color=UIStyles.DISABLED_COLOR
-                ))
-                if self.bot and self.bot.bot_running:
-                    self.bot.stop_bot()
-            else: # Starting, Stopping, Checking, etc.
-                self.root.after(0, lambda: self.start_button.configure(
-                    state="disabled", 
-                    text="..." if new_status in ["Starting", "Stopping"] else "Start Ollama",
-                    fg_color=UIStyles.DISABLED_COLOR, 
-                    hover_color=UIStyles.DISABLED_COLOR
-                ))
 
     def _on_active_model_changed_persistence(self, new_model, old_model):
         """Handle active model changes for persistence."""

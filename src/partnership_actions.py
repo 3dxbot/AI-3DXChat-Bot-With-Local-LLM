@@ -311,9 +311,9 @@ class PartnershipActionsMixin:
             # 4. Then always click clothes -> put on all -> clothes
             await self._reset_clothes()
 
-            # 4. Clear local LLM conversation history
-            self.ui.ollama_manager.clear_history()
-            self.log("Local LLM chat history cleared.", internal=True)
+            # 4. Clear conversation history
+            self.ui.gemini_manager.clear_history()
+            self.log("Chat history cleared.", internal=True)
 
             # Cleanup always performed
             if self.current_partner_nick and self.current_partner_nick in self.auto_added_nicks_session:
