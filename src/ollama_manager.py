@@ -666,7 +666,9 @@ class OllamaManager:
             self.logger.error(f"Error activating model {model_name}: {e}")
             return False
 
-    async def generate_response(self, prompt: str, system_prompt: str = "", manifest: str = "") -> Optional[str]:
+    async def generate_response(self, prompt: str, system_prompt: str = "", manifest: str = "", 
+                              temperature: float = 0.7, repeat_penalty: float = 1.1,
+                              history_length: int = 20) -> Optional[str]:
         """
         Generate a response using the active model and maintain chat history (Asynchronous).
         
@@ -674,6 +676,9 @@ class OllamaManager:
             prompt: User message.
             system_prompt: System prompt from character.
             manifest: Character manifest info.
+            temperature: Creativity control (0.0-2.0).
+            repeat_penalty: Repetition penalty (1.0-2.0).
+            history_length: Max messages in history (default 20).
             
         Returns:
             Optional[str]: Generated response or None if failed.
@@ -730,12 +735,20 @@ class OllamaManager:
                     
                     self.logger.info(f"LLM Request [Posting]: {model}...")
                     req_start = time.time()
+                    
+                    # Prepare options
+                    options = {
+                        "temperature": temperature,
+                        "repeat_penalty": repeat_penalty
+                    }
+                    
                     response = requests.post(
                         url,
                         json={
                             "model": model,
                             "messages": messages,
-                            "stream": False
+                            "stream": False,
+                            "options": options
                         },
                         timeout=180 # Increased timeout for large models/first load
                     )
@@ -769,9 +782,9 @@ class OllamaManager:
                 self.chat_history.append({"role": "user", "content": prompt})
                 self.chat_history.append({"role": "assistant", "content": response_text})
                 
-                # Keep history manageable (last 20 messages = 10 rounds)
-                if len(self.chat_history) > 20: 
-                    self.chat_history = self.chat_history[-20:]
+                # Keep history manageable
+                if len(self.chat_history) > history_length: 
+                    self.chat_history = self.chat_history[-history_length:]
                 
                 self.logger.debug(f"Chat history updated. Current size: {len(self.chat_history)} messages")
             else:
@@ -980,11 +993,14 @@ class OllamaManager:
             model_name = self.modelfile_generator.create_character_model_name(
                 base_model, character_name
             )
+            self.logger.info(f"Generated character model name: '{model_name}'")
             
             # Create Modelfile
             modelfile_content = self.modelfile_generator.generate_character_modelfile(
                 model_name, base_model, character_data
             )
+            print(f"DEBUG: Generated Modelfile Content for '{model_name}' (Base: '{base_model}'):\n{modelfile_content}")
+            print(f"DEBUG: Content Length: {len(modelfile_content)}")
             
             # Save Modelfile
             from .config import get_model_folder_path
@@ -1000,7 +1016,8 @@ class OllamaManager:
                 f"{self.api_base_url}/api/create",
                 json={
                     "name": model_name,
-                    "modelfile": modelfile_content
+                    "modelfile": modelfile_content,
+                    "stream": False
                 },
                 timeout=300
             )
@@ -1009,12 +1026,84 @@ class OllamaManager:
                 self.logger.info(f"Successfully created character model: {model_name}")
                 return model_name
             else:
-                self.logger.error(f"Failed to create character model: HTTP {response.status_code}")
-                return ""
+                api_error = f"Ollama API Error ({response.status_code}): {response.text}"
+                self.logger.warning(f"API creation failed: {api_error}. Attempting CLI fallback...")
                 
+                # Check if CLI is available and try fallback
+                if self.ollama_path and Path(self.ollama_path).exists():
+                     try:
+                         # Ensure Modelfile exists on disk
+                         if not modelfile_path.exists():
+                             modelfile_folder = modelfile_path.parent
+                             modelfile_folder.mkdir(parents=True, exist_ok=True)
+                             with open(modelfile_path, 'w', encoding='utf-8') as f:
+                                 f.write(modelfile_content)
+                                 
+                         cmd = [str(self.ollama_path), "create", model_name, "-f", str(modelfile_path)]
+                         self.logger.info(f"Running CLI command: {' '.join(cmd)}")
+                         
+                         # Parse port from api_base_url or config
+                         env = os.environ.copy()
+                         # Assuming api_base_url is http://ip:port
+                         if self.api_base_url:
+                             try:
+                                 # strict separation of http://
+                                 address = self.api_base_url.split("://")[-1]
+                                 env["OLLAMA_HOST"] = address
+                             except:
+                                 pass
+                                 
+                         # Run with detailed output capture
+                         result = subprocess.run(cmd, capture_output=True, text=True, encoding='utf-8', env=env)
+                         
+                         if result.returncode == 0:
+                             self.logger.info(f"Successfully created character model via CLI: {model_name}")
+                             return model_name
+                         else:
+                             cli_error = f"CLI Error ({result.returncode}): {result.stderr}"
+                             self.logger.error(cli_error)
+                             raise Exception(f"{api_error}\nFallback {cli_error}")
+                     except Exception as cli_ex:
+                         self.logger.error(f"CLI fallback failed: {cli_ex}")
+                         raise Exception(f"{api_error}\nFallback failed: {cli_ex}")
+                else:
+                    raise Exception(api_error)
+
         except Exception as e:
             self.logger.error(f"Error creating character model: {e}")
-            return ""
+            raise e
+    
+    def create_model(self, model_name: str, modelfile_content: str) -> bool:
+        """
+        Create or update a model with the given Modelfile content.
+        
+        Args:
+            model_name: Name of the model.
+            modelfile_content: Content of the Modelfile.
+            
+        Returns:
+            bool: True if successful, False otherwise.
+        """
+        try:
+            self.logger.info(f"Creating/Updating model '{model_name}'...")
+            response = requests.post(
+                f"{self.api_base_url}/api/create",
+                json={
+                    "name": model_name,
+                    "modelfile": modelfile_content
+                },
+                timeout=300
+            )
+            
+            if response.status_code == 200:
+                self.logger.info(f"Successfully created/updated model: {model_name}")
+                return True
+            else:
+                self.logger.error(f"Failed to create model: HTTP {response.status_code} - {response.text}")
+                return False
+        except Exception as e:
+            self.logger.error(f"Error creating model: {e}")
+            return False
     
     def _run_service(self):
         """Run Ollama service in background thread."""

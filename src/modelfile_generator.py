@@ -62,10 +62,9 @@ class ModelfileGenerator:
         
         # Base GGUF model configuration
         modelfile_lines = [
+            f"FROM {gguf_path}",
             f"# Modelfile for {model_name}",
             f"# Generated from GGUF file: {gguf_path}",
-            "",
-            f"FROM {gguf_path}",
             "",
             "# Model parameters",
         ]
@@ -152,10 +151,9 @@ class ModelfileGenerator:
         
         # Base standard model configuration
         modelfile_lines = [
+            f"FROM {base_model}",
             f"# Modelfile for {model_name}",
             f"# Based on {base_model}",
-            "",
-            f"FROM {base_model}",
             "",
             "# Model parameters",
         ]
@@ -252,10 +250,27 @@ class ModelfileGenerator:
             str: Combined model name.
         """
         # Clean names for model naming
-        clean_base = base_model.replace(':', '_').replace('/', '_').replace('\\', '_')
-        clean_character = character_name.replace(' ', '_').replace(':', '_')
+        import re
         
-        return f"{clean_base}-{clean_character}"
+        # Remove hugginface URL prefixes
+        clean_base = base_model.replace('hf.co/', '').replace('huggingface.co/', '')
+        
+        # Replace common separators with dashes
+        clean_base = clean_base.replace(':', '-').replace('/', '-').replace('\\', '-').replace('_', '-')
+        clean_character = character_name.replace(' ', '-').replace(':', '-').replace('/', '-').replace('\\', '-').replace('_', '-')
+        
+        # Remove any other non-allowed characters (keep only alphanumeric and dashes/dots)
+        clean_base = re.sub(r'[^a-zA-Z0-9\-\.]', '', clean_base)
+        clean_character = re.sub(r'[^a-zA-Z0-9\-\.]', '', clean_character)
+        
+        # Combine and ensure lowercase
+        full_name = f"{clean_base}-{clean_character}".lower()
+        
+        # Remove repeated dashes and leading/trailing dashes/dots
+        full_name = re.sub(r'-+', '-', full_name)
+        full_name = full_name.strip('-.')
+        
+        return full_name
     
     def extract_character_from_modelfile(self, modelfile_content: str) -> Dict[str, Any]:
         """

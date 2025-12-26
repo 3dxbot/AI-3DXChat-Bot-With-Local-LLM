@@ -645,7 +645,10 @@ class ChatBot(BotSettingsMixin, BotSetupMixin, PartnershipActionsMixin, Autonomo
         response = await self.ui.ollama_manager.generate_response(
             llm_input,
             system_prompt=self.global_prompt,
-            manifest=self.character_manifest
+            manifest=self.character_manifest,
+            temperature=getattr(self, 'temperature', 0.7),
+            repeat_penalty=getattr(self, 'repeat_penalty', 1.1),
+            history_length=getattr(self, 'chat_history_length', 20)
         )
         
         if response:

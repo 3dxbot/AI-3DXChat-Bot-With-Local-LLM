@@ -521,6 +521,54 @@ class OllamaUI:
         )
         self.delete_model_btn.pack(side='left')
         
+        # Creativity Parameters Section
+        params_section = ctk.CTkFrame(zone, fg_color="transparent")
+        params_section.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
+        
+        UIStyles.create_section_header(params_section, text="Generation Parameters").pack(anchor='w', pady=(0, UIStyles.SPACE_MD))
+        
+        # Temperature
+        temp_frame = ctk.CTkFrame(params_section, fg_color="transparent")
+        temp_frame.pack(fill='x', pady=(0, UIStyles.SPACE_SM))
+        
+        self.temp_label = ctk.CTkLabel(temp_frame, text="Temperature: 0.7", width=120, anchor='w', text_color=UIStyles.TEXT_PRIMARY)
+        self.temp_label.pack(side='left')
+        
+        self.temp_slider = ctk.CTkSlider(temp_frame, from_=0.0, to=2.0, number_of_steps=20, command=self._on_temperature_change)
+        self.temp_slider.set(0.7)
+        if hasattr(self.parent, 'bot') and hasattr(self.parent.bot, 'temperature'):
+             self.temp_slider.set(self.parent.bot.temperature)
+             self.temp_label.configure(text=f"Temperature: {self.parent.bot.temperature:.1f}")
+        self.temp_slider.pack(side='left', fill='x', expand=True, padx=UIStyles.SPACE_MD)
+        
+        # Repetition Penalty
+        penalty_frame = ctk.CTkFrame(params_section, fg_color="transparent")
+        penalty_frame.pack(fill='x', pady=(0, UIStyles.SPACE_SM))
+        
+        self.penalty_label = ctk.CTkLabel(penalty_frame, text="Repetition Penalty: 1.1", width=120, anchor='w', text_color=UIStyles.TEXT_PRIMARY)
+        self.penalty_label.pack(side='left')
+        
+        self.penalty_slider = ctk.CTkSlider(penalty_frame, from_=1.0, to=2.0, number_of_steps=20, command=self._on_penalty_change)
+        self.penalty_slider.set(1.1)
+        if hasattr(self.parent, 'bot') and hasattr(self.parent.bot, 'repeat_penalty'):
+             self.penalty_slider.set(self.parent.bot.repeat_penalty)
+             self.penalty_label.configure(text=f"Repetition Penalty: {self.parent.bot.repeat_penalty:.1f}")
+        self.penalty_slider.pack(side='left', fill='x', expand=True, padx=UIStyles.SPACE_MD)
+        
+        # Conversation Memory
+        memory_frame = ctk.CTkFrame(params_section, fg_color="transparent")
+        memory_frame.pack(fill='x', pady=(0, UIStyles.SPACE_SM))
+        
+        self.memory_label = ctk.CTkLabel(memory_frame, text="Chat Memory: 20", width=120, anchor='w', text_color=UIStyles.TEXT_PRIMARY)
+        self.memory_label.pack(side='left')
+        
+        self.memory_slider = ctk.CTkSlider(memory_frame, from_=0, to=100, number_of_steps=100, command=self._on_memory_change)
+        self.memory_slider.set(20)
+        if hasattr(self.parent, 'bot') and hasattr(self.parent.bot, 'chat_history_length'):
+             self.memory_slider.set(self.parent.bot.chat_history_length)
+             self.memory_label.configure(text=f"Chat Memory: {int(self.parent.bot.chat_history_length)}")
+        self.memory_slider.pack(side='left', fill='x', expand=True, padx=UIStyles.SPACE_MD)
+        
         # Progress Section (Hidden by default)
         self.model_progress_frame = ctk.CTkFrame(zone, fg_color="transparent")
         self.model_progress_frame.pack(fill='x', padx=UIStyles.SPACE_2XL, pady=(0, UIStyles.SPACE_2XL))
@@ -1100,3 +1148,31 @@ class OllamaUI:
                     threading.Thread(target=upload_task, daemon=True).start()
         except Exception as e:
             self.logger.error(f"Error browsing GGUF file: {e}")
+
+    def _on_temperature_change(self, value):
+        """Handle temperature slider change."""
+        if hasattr(self, 'temp_label'):
+             self.temp_label.configure(text=f"Temperature: {value:.1f}")
+        
+        if hasattr(self.parent, 'bot'):
+             self.parent.bot.temperature = float(value)
+             self.parent.bot.save_settings()
+
+    def _on_penalty_change(self, value):
+        """Handle repetition penalty slider change."""
+        if hasattr(self, 'penalty_label'):
+             self.penalty_label.configure(text=f"Repetition Penalty: {value:.1f}")
+        
+        if hasattr(self.parent, 'bot'):
+             self.parent.bot.repeat_penalty = float(value)
+             self.parent.bot.save_settings()
+
+    def _on_memory_change(self, value):
+        """Handle chat memory slider change."""
+        int_value = int(value)
+        if hasattr(self, 'memory_label'):
+             self.memory_label.configure(text=f"Chat Memory: {int_value}")
+        
+        if hasattr(self.parent, 'bot'):
+             self.parent.bot.chat_history_length = int_value
+             self.parent.bot.save_settings()

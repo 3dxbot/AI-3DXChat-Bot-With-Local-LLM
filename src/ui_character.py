@@ -104,6 +104,11 @@ class UICharacterMixin:
         UIStyles.create_secondary_button(btn_container, text="Export", command=self._export_character, width=80).pack(side="left", padx=5)
         UIStyles.create_button(btn_container, text="Save", command=self._save_current_character, width=80).pack(side="left", padx=5)
         
+        self.rewrite_btn = UIStyles.create_secondary_button(btn_container, text="Rewrite Modelfile", 
+                                                 command=self._rewrite_character_modelfile, 
+                                                 width=140)
+        self.rewrite_btn.pack(side="left", padx=5)
+
         self.activate_btn = UIStyles.create_button(btn_container, text="Activate", 
                                                    command=self._activate_current_character, 
                                                    fg_color=UIStyles.WARNING_COLOR, hover_color="#d97706", width=100)
@@ -159,9 +164,7 @@ class UICharacterMixin:
                               command=self._rebuild_character_index,
                               width=120, height=28).pack(side="left", padx=(0, 10))
         
-        UIStyles.create_button(mem_controls_frame, text="Test Search",
-                              command=self._test_memory_search,
-                              width=120, height=28).pack(side="left")
+        # REMOVED: Test Search button
         
         UIStyles.create_button(mem_header, text="+ Add Card", command=self._add_memory_card, width=100, height=28).pack(side="right")
 
@@ -631,4 +634,74 @@ class UICharacterMixin:
         # Update memory status
         self._update_memory_status("Ready", UIStyles.SUCCESS_COLOR)
         
+        
         messagebox.showinfo("Activated", f"Character '{self.active_character_name}' is now active.\nSettings applied to LLM context.\nMemory system ready.")
+
+    def _rewrite_character_modelfile(self):
+        """Rewrite Modelfile for the current character using active settings."""
+        if not self.current_character: return
+        
+        # 1. Identify Base Model
+        if hasattr(self, 'status_manager'):
+            current_model = self.status_manager.get_active_model()
+        else:
+            current_model = None
+            
+        if not current_model:
+            messagebox.showerror("Error", "No active model to use as base.")
+            return
+
+        # Simple heuristic to strip suffix if it's already a character model
+        # E.g. "llama3-Alice" -> "llama3"
+        base_model = current_model
+        char_suffix = f"-{self.current_character.name.replace(' ', '_').replace(':', '_')}"
+        if current_model.endswith(char_suffix):
+            base_model = current_model[:-len(char_suffix)]
+            if not messagebox.askyesno("Confirm Base Model", f"Detected base model: '{base_model}'\n(derived from '{current_model}').\n\nProceed to overwrite '{current_model}'?"):
+                return
+        else:
+             if not messagebox.askyesno("Confirm Base Model", f"Using active model '{current_model}' as BASE.\nRun this only if '{current_model}' is a raw model (e.g. llama3, mistral).\n\nIf '{current_model}' is already a custom character model, this will create a double-nested model (bad).\n\nProceed?"):
+                 return
+        
+        # 2. Prepare Character Data with Params
+        char_data = self.current_character.to_dict()
+        
+        # Add generation params
+        if hasattr(self, 'bot'):
+            char_data["model_params"] = {
+                "temperature": getattr(self.bot, 'temperature', 0.7),
+                "repeat_penalty": getattr(self.bot, 'repeat_penalty', 1.1)
+            }
+        
+        # 3. Create Model
+        try:
+            if hasattr(self, 'ollama_manager'):
+                self.activate_btn.configure(state="disabled", text="Rewriting...")
+                
+                # Run in thread to avoid freezing UI
+                def rewrite_task():
+                    try:
+                         # create_character_model returns the name of the created model
+                        new_model_name = self.ollama_manager.create_character_model(base_model, char_data)
+                        
+                        if new_model_name:
+                             # 4. Activate the new model
+                             self.ollama_manager.activate_model(new_model_name)
+                             self.root.after(0, lambda: messagebox.showinfo("Success", f"Modelfile rewritten and applied!\nActive Model: {new_model_name}"))
+                        else:
+                             self.root.after(0, lambda: messagebox.showerror("Error", "Failed to create/rewrite model."))
+                             
+                    except Exception as e:
+                        import traceback
+                        traceback.print_exc()
+                        err_msg = repr(e)
+                        self.root.after(0, lambda: messagebox.showerror("Error", f"Error rewriting Modelfile: {err_msg}"))
+                    finally:
+                        self.root.after(0, lambda: self._update_activate_btn_state())
+
+                import threading
+                threading.Thread(target=rewrite_task, daemon=True).start()
+                
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to initiate rewrite: {e}")
+            self._update_activate_btn_state()

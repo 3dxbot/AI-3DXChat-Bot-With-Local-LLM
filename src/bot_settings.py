@@ -297,6 +297,9 @@ class BotSettingsMixin:
         self.ocr_language = 'en'
         self.current_language = 'en'
         self.time_per_500_chars = 2.0
+        self.temperature = 0.7
+        self.repeat_penalty = 1.1
+        self.chat_history_length = 20
         self.save_settings()
 
     def load_settings(self):
@@ -333,6 +336,9 @@ class BotSettingsMixin:
                     self.autonomous_mode = settings.get('autonomous_mode', False)
                     self.active_character_name = settings.get("active_character_name", None)
                     self.time_per_500_chars = settings.get('time_per_500_chars', 2.0)
+                    self.temperature = settings.get('temperature', 0.7)
+                    self.repeat_penalty = settings.get('repeat_penalty', 1.1)
+                    self.chat_history_length = settings.get('chat_history_length', 20)
                     if self.show_overlay:
                         self._create_overlay()
                     
@@ -376,7 +382,10 @@ class BotSettingsMixin:
                 "autonomous_mode": self.autonomous_mode,
                 "time_per_500_chars": self.time_per_500_chars,
                 "active_model": getattr(self, 'active_model', None),
-                "active_character_name": getattr(self, 'active_character_name', None)
+                "active_character_name": getattr(self, 'active_character_name', None),
+                "temperature": getattr(self, 'temperature', 0.7),
+                "repeat_penalty": getattr(self, 'repeat_penalty', 1.1),
+                "chat_history_length": getattr(self, 'chat_history_length', 20)
             }
             os.makedirs(os.path.dirname(SETTINGS_FILE), exist_ok=True)
             with open(SETTINGS_FILE, 'w', encoding='utf-8') as f:
